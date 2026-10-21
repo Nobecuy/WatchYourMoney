@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:watch_your_money/core/i18n/app_translations.dart';
+import 'package:watch_your_money/core/settings/settings_provider.dart';
 import 'package:watch_your_money/core/theme/app_colors.dart';
 import 'package:watch_your_money/core/theme/neumorphic_container.dart';
+import 'package:watch_your_money/core/utils/currency_formatter.dart';
 import 'package:watch_your_money/domain/models/transaction_model.dart';
 import 'package:watch_your_money/features/dashboard/dashboard_provider.dart';
 
@@ -30,19 +33,25 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
 
   List<TransactionModel> _applyFilters(List<TransactionModel> all) {
     return all.where((t) {
-      final typeMatch = _typeFilter == 'ALL' || t.type.toUpperCase() == _typeFilter;
-      final payMatch = _paymentFilter == 'ALL' || t.paymentMethod.toUpperCase() == _paymentFilter;
-      final searchMatch = _searchQuery.isEmpty ||
+      final typeMatch =
+          _typeFilter == 'ALL' || t.type.toUpperCase() == _typeFilter;
+      final payMatch =
+          _paymentFilter == 'ALL' ||
+          t.paymentMethod.toUpperCase() == _paymentFilter;
+      final searchMatch =
+          _searchQuery.isEmpty ||
           t.note.toLowerCase().contains(_searchQuery.toLowerCase()) ||
           t.categoryId.toLowerCase().contains(_searchQuery.toLowerCase());
       return typeMatch && payMatch && searchMatch;
-    }).toList()
-      ..sort((a, b) => b.date.compareTo(a.date));
+    }).toList()..sort((a, b) => b.date.compareTo(a.date));
   }
 
   @override
   Widget build(BuildContext context) {
     final transactionsAsync = ref.watch(transactionsProvider);
+    final settings = ref.watch(appSettingsProvider);
+    final fmt = CurrencyFormatter.from(settings);
+    final t = AppTranslations.of(settings.languageCode);
 
     return Scaffold(
       backgroundColor: AppColors.surfaceCanvas,
@@ -64,20 +73,37 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
               padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
               child: NeumorphicContainer(
                 isPressed: true,
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 2,
+                ),
                 borderRadius: 12,
                 clipBehavior: Clip.antiAlias,
                 child: TextField(
                   controller: _searchController,
                   onChanged: (v) => setState(() => _searchQuery = v),
-                  style: const TextStyle(color: AppColors.textPrimary, fontSize: 14),
+                  style: const TextStyle(
+                    color: AppColors.textPrimary,
+                    fontSize: 14,
+                  ),
                   decoration: InputDecoration(
-                    hintText: 'Cari transaksi...',
-                    hintStyle: const TextStyle(color: AppColors.textMuted, fontSize: 14),
-                    prefixIcon: const Icon(Icons.search_rounded, color: AppColors.textMuted, size: 20),
+                    hintText: t.searchTx,
+                    hintStyle: const TextStyle(
+                      color: AppColors.textMuted,
+                      fontSize: 14,
+                    ),
+                    prefixIcon: const Icon(
+                      Icons.search_rounded,
+                      color: AppColors.textMuted,
+                      size: 20,
+                    ),
                     suffixIcon: _searchQuery.isNotEmpty
                         ? IconButton(
-                            icon: const Icon(Icons.close_rounded, color: AppColors.textMuted, size: 18),
+                            icon: const Icon(
+                              Icons.close_rounded,
+                              color: AppColors.textMuted,
+                              size: 18,
+                            ),
                             onPressed: () {
                               _searchController.clear();
                               setState(() => _searchQuery = '');
@@ -100,11 +126,27 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                 scrollDirection: Axis.horizontal,
                 child: Row(
                   children: [
-                    ..._typeFilters.map((f) => _buildFilterChip(f, f == _typeFilter, () => setState(() => _typeFilter = f))),
+                    ..._typeFilters.map(
+                      (f) => _buildFilterChip(
+                        f,
+                        f == _typeFilter,
+                        () => setState(() => _typeFilter = f),
+                      ),
+                    ),
                     const SizedBox(width: 8),
-                    Container(width: 1, height: 20, color: AppColors.surfaceBright),
+                    Container(
+                      width: 1,
+                      height: 20,
+                      color: AppColors.surfaceBright,
+                    ),
                     const SizedBox(width: 8),
-                    ..._paymentFilters.skip(1).map((f) => _buildFilterChip(f, f == _paymentFilter, () => setState(() => _paymentFilter = f))),
+                    ..._paymentFilters.map(
+                      (f) => _buildFilterChip(
+                        f,
+                        f == _paymentFilter,
+                        () => setState(() => _paymentFilter = f),
+                      ),
+                    ),
                   ],
                 ),
               ).animate().fadeIn(delay: 150.ms, duration: 300.ms),
@@ -121,9 +163,16 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          const Icon(Icons.search_off, color: AppColors.textMuted, size: 40),
+                          const Icon(
+                            Icons.search_off,
+                            color: AppColors.textMuted,
+                            size: 40,
+                          ),
                           const SizedBox(height: 12),
-                          Text('Tidak ada transaksi', style: Theme.of(context).textTheme.bodyMedium),
+                          Text(
+                            t.noTransactions,
+                            style: Theme.of(context).textTheme.bodyMedium,
+                          ),
                         ],
                       ),
                     );
@@ -133,16 +182,22 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                     itemCount: filtered.length,
                     itemBuilder: (context, i) => Padding(
                       padding: const EdgeInsets.only(bottom: 10),
-                      child: _buildTxItem(filtered[i], i),
+                      child: _buildTxItem(filtered[i], i, fmt),
                     ),
                   );
                 },
                 loading: () => const Center(
                   child: CircularProgressIndicator(
-                    color: AppColors.textSecondary, strokeWidth: 1.5,
+                    color: AppColors.textSecondary,
+                    strokeWidth: 1.5,
                   ),
                 ),
-                error: (err, _) => Center(child: Text('$err', style: Theme.of(context).textTheme.bodySmall)),
+                error: (err, _) => Center(
+                  child: Text(
+                    '$err',
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                ),
               ),
             ),
           ],
@@ -160,14 +215,24 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
           duration: const Duration(milliseconds: 200),
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
           decoration: BoxDecoration(
-            color: selected ? AppColors.surfaceContainerHigh : AppColors.surfaceContainerLow,
+            color: selected
+                ? AppColors.surfaceContainerHigh
+                : AppColors.surfaceContainerLow,
             borderRadius: BorderRadius.circular(999),
             border: Border.all(
-              color: selected ? AppColors.surfaceBright : const Color(0x0FFFFFFF),
+              color: selected
+                  ? AppColors.surfaceBright
+                  : const Color(0x0FFFFFFF),
             ),
-            boxShadow: selected ? [
-              const BoxShadow(color: AppColors.shadowDark, offset: Offset(2, 2), blurRadius: 6),
-            ] : null,
+            boxShadow: selected
+                ? [
+                    const BoxShadow(
+                      color: AppColors.shadowDark,
+                      offset: Offset(2, 2),
+                      blurRadius: 6,
+                    ),
+                  ]
+                : null,
           ),
           child: Text(
             label,
@@ -183,7 +248,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
     );
   }
 
-  Widget _buildTxItem(TransactionModel tx, int index) {
+  Widget _buildTxItem(TransactionModel tx, int index, CurrencyFormatter fmt) {
     final isIncome = tx.type == 'income';
     final color = isIncome ? AppColors.positive : AppColors.negative;
 
@@ -196,7 +261,11 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
         ),
         alignment: Alignment.centerRight,
         padding: const EdgeInsets.only(right: 24),
-        child: const Icon(Icons.delete_outline, color: AppColors.negative, size: 20),
+        child: const Icon(
+          Icons.delete_outline,
+          color: AppColors.negative,
+          size: 20,
+        ),
       ),
       direction: DismissDirection.endToStart,
       confirmDismiss: (_) => _showDeleteDialog(context),
@@ -221,20 +290,24 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                 children: [
                   Text(
                     tx.note.isEmpty ? tx.categoryId : tx.note,
-                    style: Theme.of(context).textTheme.bodyLarge?.copyWith(fontSize: 14, fontWeight: FontWeight.w600),
+                    style: Theme.of(context).textTheme.bodyLarge
+                        ?.copyWith(fontSize: 14, fontWeight: FontWeight.w600),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
                   const SizedBox(height: 2),
                   Text(
                     '${tx.date.day}/${tx.date.month}/${tx.date.year} · ${tx.paymentMethod.toUpperCase()}',
-                    style: const TextStyle(color: AppColors.textMuted, fontSize: 11),
+                    style: const TextStyle(
+                      color: AppColors.textMuted,
+                      fontSize: 11,
+                    ),
                   ),
                 ],
               ),
             ),
             Text(
-              '${isIncome ? '+' : '-'} Rp ${_fmt(tx.amount)}',
+              '${isIncome ? '+' : '-'} ${fmt.format(tx.amount)}',
               style: TextStyle(
                 color: color,
                 fontWeight: FontWeight.w700,
@@ -247,21 +320,22 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
     );
   }
 
-  String _fmt(double amount) {
-    if (amount >= 1000000) return '${(amount / 1000000).toStringAsFixed(1)}jt';
-    if (amount >= 1000) return '${(amount / 1000).toStringAsFixed(0)}rb';
-    return amount.toStringAsFixed(0);
-  }
-
   IconData _categoryIcon(String cat) {
     switch (cat.toLowerCase()) {
-      case 'food': return Icons.restaurant_outlined;
-      case 'transport': return Icons.directions_car_outlined;
-      case 'salary': return Icons.account_balance_outlined;
-      case 'entertainment': return Icons.movie_outlined;
-      case 'shopping': return Icons.shopping_bag_outlined;
-      case 'health': return Icons.favorite_outline;
-      default: return Icons.receipt_outlined;
+      case 'food':
+        return Icons.restaurant_outlined;
+      case 'transport':
+        return Icons.directions_car_outlined;
+      case 'salary':
+        return Icons.account_balance_outlined;
+      case 'entertainment':
+        return Icons.movie_outlined;
+      case 'shopping':
+        return Icons.shopping_bag_outlined;
+      case 'health':
+        return Icons.favorite_outline;
+      default:
+        return Icons.receipt_outlined;
     }
   }
 
@@ -276,11 +350,26 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.delete_outline, color: AppColors.textSecondary, size: 40),
+              const Icon(
+                Icons.delete_outline,
+                color: AppColors.textSecondary,
+                size: 40,
+              ),
               const SizedBox(height: 16),
-              const Text('Hapus Transaksi?', style: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.w600, fontSize: 16)),
+              const Text(
+                'Hapus Transaksi?',
+                style: TextStyle(
+                  color: AppColors.textPrimary,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 16,
+                ),
+              ),
               const SizedBox(height: 8),
-              const Text('Tindakan ini tidak bisa dibatalkan.', style: TextStyle(color: AppColors.textMuted, fontSize: 13), textAlign: TextAlign.center),
+              const Text(
+                'Tindakan ini tidak bisa dibatalkan.',
+                style: TextStyle(color: AppColors.textMuted, fontSize: 13),
+                textAlign: TextAlign.center,
+              ),
               const SizedBox(height: 24),
               Row(
                 children: [
@@ -289,7 +378,12 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                       onTap: () => Navigator.pop(context, false),
                       padding: const EdgeInsets.symmetric(vertical: 12),
                       borderRadius: 12,
-                      child: const Center(child: Text('Batal', style: TextStyle(color: AppColors.textSecondary))),
+                      child: const Center(
+                        child: Text(
+                          'Batal',
+                          style: TextStyle(color: AppColors.textSecondary),
+                        ),
+                      ),
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -299,7 +393,15 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                       padding: const EdgeInsets.symmetric(vertical: 12),
                       borderRadius: 12,
                       backgroundColor: AppColors.surfaceBright,
-                      child: const Center(child: Text('Hapus', style: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.w600))),
+                      child: const Center(
+                        child: Text(
+                          'Hapus',
+                          style: TextStyle(
+                            color: AppColors.textPrimary,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
                     ),
                   ),
                 ],

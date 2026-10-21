@@ -9,6 +9,11 @@ import 'package:watch_your_money/core/utils/currency_formatter.dart';
 import 'package:watch_your_money/domain/models/transaction_model.dart';
 import 'package:watch_your_money/features/dashboard/dashboard_provider.dart';
 import 'package:watch_your_money/features/profile/profile_screen.dart';
+import 'package:watch_your_money/features/wallet/adjust_balance_modal.dart';
+import 'package:watch_your_money/features/transactions/add_transaction_modal.dart';
+import 'package:watch_your_money/features/ai_assistant/ai_assistant_screen.dart';
+import 'package:watch_your_money/core/settings/settings_provider.dart';
+import 'package:watch_your_money/core/i18n/app_translations.dart';
 
 class DashboardScreen extends ConsumerStatefulWidget {
   const DashboardScreen({super.key});
@@ -21,14 +26,16 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   bool _showBalance = true;
 
   void _onProfileTap(BuildContext context) {
-    Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => const ProfileScreen()),
-    );
+    Navigator.of(context)
+        .push(MaterialPageRoute(builder: (_) => const ProfileScreen()));
   }
 
   @override
   Widget build(BuildContext context) {
     final transactionsAsync = ref.watch(transactionsProvider);
+    final settings = ref.watch(appSettingsProvider);
+    final fmt = CurrencyFormatter.from(settings);
+    final t = AppTranslations.of(settings.languageCode);
 
     return Scaffold(
       backgroundColor: AppColors.surfaceCanvas,
@@ -45,10 +52,16 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                   children: [
                     Row(
                       children: [
-                        Text('watchh', style: Theme.of(context).textTheme.headlineMedium),
+                        Text(
+                          'watchh',
+                          style: Theme.of(context).textTheme.headlineMedium,
+                        ),
                         const SizedBox(width: 8),
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 3,
+                          ),
                           decoration: BoxDecoration(
                             color: const Color(0x1A10B981),
                             borderRadius: BorderRadius.circular(999),
@@ -57,7 +70,13 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                           child: const Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              Text('● ', style: TextStyle(color: AppColors.positive, fontSize: 8)),
+                              Text(
+                                '● ',
+                                style: TextStyle(
+                                  color: AppColors.positive,
+                                  fontSize: 8,
+                                ),
+                              ),
                               Text(
                                 'VAULT ACTIVE',
                                 style: TextStyle(
@@ -79,7 +98,11 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                       padding: EdgeInsets.zero,
                       onTap: () => _onProfileTap(context),
                       child: Center(
-                        child: Icon(Icons.person_outline_rounded, color: AppColors.textPrimary, size: 20),
+                        child: Icon(
+                          Icons.person_outline_rounded,
+                          color: AppColors.textPrimary,
+                          size: 20,
+                        ),
                       ),
                     ),
                   ],
@@ -91,11 +114,63 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
-                child: transactionsAsync.when(
-                  data: (transactions) => _buildBalanceCard(context, transactions),
-                  loading: () => _buildBalanceCard(context, []),
-                  error: (e, st) => _buildBalanceCard(context, []),
-                ).animate().fadeIn(delay: 100.ms, duration: 350.ms).slideY(begin: 0.1),
+                child: transactionsAsync
+                    .when(
+                      data: (transactions) =>
+                          _buildBalanceCard(context, transactions, fmt, t),
+                      loading: () => _buildBalanceCard(context, [], fmt, t),
+                      error: (e, st) => _buildBalanceCard(context, [], fmt, t),
+                    )
+                    .animate()
+                    .fadeIn(delay: 100.ms, duration: 350.ms)
+                    .slideY(begin: 0.1),
+              ),
+            ),
+
+            // ── Quick Actions ─────────────────────────────────────
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+                child:
+                    Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            _buildQuickAction(
+                              icon: Icons.credit_card_rounded,
+                              label: t.recordCard,
+                              color: const Color(0xFF818CF8),
+                              onTap: () =>
+                                  _openModal('expense', paymentMethod: 'card'),
+                            ),
+                            _buildQuickAction(
+                              icon: Icons.payments_rounded,
+                              label: t.recordCash,
+                              color: const Color(0xFF34D399),
+                              onTap: () =>
+                                  _openModal('expense', paymentMethod: 'cash'),
+                            ),
+                            _buildQuickAction(
+                              icon: Icons.add_circle_outline_rounded,
+                              label: t.addIncome,
+                              color: const Color(0xFFFBBF24),
+                              onTap: () => _openModal('income'),
+                            ),
+                            _buildQuickAction(
+                              icon: Icons.auto_awesome_rounded,
+                              label: t.askAI,
+                              color: const Color(0xFFA78BFA),
+                              onTap: () => Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => const AIAssistantScreen(),
+                                ),
+                              ),
+                            ),
+                          ],
+                        )
+                        .animate()
+                        .fadeIn(delay: 150.ms, duration: 300.ms)
+                        .slideY(begin: 0.1),
               ),
             ),
 
@@ -103,11 +178,16 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
-                child: transactionsAsync.when(
-                  data: (transactions) => _buildMiniBarChart(transactions),
-                  loading: () => const SizedBox(),
-                  error: (e, st) => const SizedBox(),
-                ).animate().fadeIn(delay: 180.ms, duration: 350.ms).slideY(begin: 0.1),
+                child: transactionsAsync
+                    .when(
+                      data: (transactions) =>
+                          _buildMiniBarChart(transactions, fmt, t),
+                      loading: () => const SizedBox(),
+                      error: (e, st) => const SizedBox(),
+                    )
+                    .animate()
+                    .fadeIn(delay: 180.ms, duration: 350.ms)
+                    .slideY(begin: 0.1),
               ),
             ),
 
@@ -118,9 +198,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Text(
-                      'TRANSAKSI TERBARU',
-                      style: TextStyle(
+                    Text(
+                      t.recentTx.toUpperCase(),
+                      style: const TextStyle(
                         color: AppColors.textMuted,
                         fontSize: 11,
                         fontWeight: FontWeight.w700,
@@ -128,11 +208,11 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                       ),
                     ),
                     Text(
-                      'Semua',
+                      t.allLabel,
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: AppColors.textSecondary,
-                            fontWeight: FontWeight.w600,
-                          ),
+                        color: AppColors.textSecondary,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                   ],
                 ).animate().fadeIn(delay: 200.ms, duration: 300.ms),
@@ -149,10 +229,14 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                       child: Center(
                         child: Column(
                           children: [
-                            const Icon(Icons.receipt_long_outlined, color: AppColors.textMuted, size: 40),
+                            const Icon(
+                              Icons.receipt_long_outlined,
+                              color: AppColors.textMuted,
+                              size: 40,
+                            ),
                             const SizedBox(height: 12),
                             Text(
-                              'Belum ada transaksi',
+                              t.noTransactions,
                               style: Theme.of(context).textTheme.bodyMedium,
                             ),
                           ],
@@ -166,7 +250,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                   delegate: SliverChildBuilderDelegate(
                     (context, index) => Padding(
                       padding: const EdgeInsets.fromLTRB(20, 0, 20, 10),
-                      child: _buildTransactionItem(recent[index], index),
+                      child: _buildTransactionItem(recent[index], index, fmt),
                     ),
                     childCount: recent.length,
                   ),
@@ -184,7 +268,12 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                 ),
               ),
               error: (err, _) => SliverToBoxAdapter(
-                child: Center(child: Text('$err', style: Theme.of(context).textTheme.bodySmall)),
+                child: Center(
+                  child: Text(
+                    '$err',
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                ),
               ),
             ),
 
@@ -195,7 +284,65 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     );
   }
 
-  Widget _buildBalanceCard(BuildContext context, List<TransactionModel> transactions) {
+  void _openModal(String type, {String? paymentMethod}) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => AddTransactionModal(
+        initialType: type,
+        initialPaymentMethod: paymentMethod,
+      ),
+    );
+  }
+
+  Widget _buildQuickAction({
+    required IconData icon,
+    required String label,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Column(
+        children: [
+          NeumorphicContainer(
+            width: 56,
+            height: 56,
+            borderRadius: 18,
+            padding: EdgeInsets.zero,
+            child: Center(
+              child: Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: color.withValues(alpha: 0.14),
+                ),
+                child: Center(child: Icon(icon, color: color, size: 20)),
+              ),
+            ),
+          ),
+          const SizedBox(height: 7),
+          Text(
+            label,
+            style: const TextStyle(
+              color: AppColors.textSecondary,
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBalanceCard(
+    BuildContext context,
+    List<TransactionModel> transactions,
+    CurrencyFormatter fmt,
+    AppTranslations t,
+  ) {
     final totalIncome = transactions
         .where((t) => t.type == 'income')
         .fold(0.0, (sum, t) => sum + t.amount);
@@ -203,6 +350,35 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         .where((t) => t.type == 'expense')
         .fold(0.0, (sum, t) => sum + t.amount);
     final balance = totalIncome - totalExpense;
+
+    // Derived per-method balances (needed for AdjustBalanceModal)
+    final cardBalance =
+        transactions
+            .where((t) => t.paymentMethod == 'card' && t.type == 'income')
+            .fold(0.0, (s, t) => s + t.amount) -
+        transactions
+            .where((t) => t.paymentMethod == 'card' && t.type == 'expense')
+            .fold(0.0, (s, t) => s + t.amount);
+    final cashBalance =
+        transactions
+            .where((t) => t.paymentMethod == 'cash' && t.type == 'income')
+            .fold(0.0, (s, t) => s + t.amount) -
+        transactions
+            .where((t) => t.paymentMethod == 'cash' && t.type == 'expense')
+            .fold(0.0, (s, t) => s + t.amount);
+
+    void openAdjust(String method) {
+      showModalBottomSheet(
+        context: context,
+        isScrollControlled: true,
+        backgroundColor: Colors.transparent,
+        builder: (_) => AdjustBalanceModal(
+          initialMethod: method,
+          currentCardBalance: cardBalance,
+          currentCashBalance: cashBalance,
+        ),
+      );
+    }
 
     return NeumorphicContainer(
       borderRadius: 24,
@@ -213,43 +389,256 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text(
-                'SALDO BERSIH (NET WORTH)',
-                style: TextStyle(
-                  color: AppColors.textMuted,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: 1.3,
+              Expanded(
+                child: Text(
+                  t.netWorth.toUpperCase(),
+                  style: const TextStyle(
+                    color: AppColors.textMuted,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 1.3,
+                  ),
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
-              GestureDetector(
-                onTap: () => setState(() => _showBalance = !_showBalance),
-                child: NeumorphicContainer(
-                  width: 36,
-                  height: 36,
-                  borderRadius: 10,
-                  padding: EdgeInsets.zero,
-                  child: Center(
-                    child: Icon(
-                      _showBalance ? Icons.visibility_outlined : Icons.visibility_off_outlined,
-                      color: AppColors.textPrimary,
-                      size: 18,
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Edit balance dropdown button
+                  GestureDetector(
+                    onTap: () {
+                      showModalBottomSheet(
+                        context: context,
+                        backgroundColor: AppColors.surfaceContainer,
+                        shape: const RoundedRectangleBorder(
+                          borderRadius: BorderRadius.vertical(
+                            top: Radius.circular(20),
+                          ),
+                        ),
+                        builder: (_) => SafeArea(
+                          top: false,
+                          child: Padding(
+                            padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Container(
+                                  width: 40,
+                                  height: 4,
+                                  margin: const EdgeInsets.only(bottom: 16),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.surfaceBright,
+                                    borderRadius: BorderRadius.circular(99),
+                                  ),
+                                ),
+                                const Text(
+                                  'Edit Saldo',
+                                  style: TextStyle(
+                                    color: AppColors.textPrimary,
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                const Text(
+                                  'Pilih dompet yang ingin disesuaikan',
+                                  style: TextStyle(
+                                    color: AppColors.textMuted,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                                const SizedBox(height: 20),
+                                // Kartu / Kredit
+                                GestureDetector(
+                                  onTap: () {
+                                    Navigator.pop(context);
+                                    openAdjust('card');
+                                  },
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 16,
+                                      vertical: 14,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: AppColors.surfaceContainerHigh,
+                                      borderRadius: BorderRadius.circular(14),
+                                      border: Border.all(
+                                        color: const Color(0x226366F1),
+                                      ),
+                                    ),
+                                    child: Row(
+                                      children: [
+                                        Container(
+                                          padding: const EdgeInsets.all(8),
+                                          decoration: BoxDecoration(
+                                            color: const Color(0x1A6366F1),
+                                            borderRadius: BorderRadius.circular(
+                                              10,
+                                            ),
+                                          ),
+                                          child: const Icon(
+                                            Icons.credit_card_rounded,
+                                            color: Color(0xFF818CF8),
+                                            size: 18,
+                                          ),
+                                        ),
+                                        const SizedBox(width: 14),
+                                        Expanded(
+                                          child: Column(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            children: [
+                                              const Text(
+                                                'Kartu / Kredit',
+                                                style: TextStyle(
+                                                  color: AppColors.textPrimary,
+                                                  fontSize: 14,
+                                                  fontWeight: FontWeight.w600,
+                                                ),
+                                              ),
+                                              Text(
+                                                'Saldo saat ini: ${fmt.compact(cardBalance)}',
+                                                style: const TextStyle(
+                                                  color: AppColors.textMuted,
+                                                  fontSize: 11,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                        const Icon(
+                                          Icons.arrow_forward_ios_rounded,
+                                          color: AppColors.textMuted,
+                                          size: 14,
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(height: 10),
+                                // Uang Tunai
+                                GestureDetector(
+                                  onTap: () {
+                                    Navigator.pop(context);
+                                    openAdjust('cash');
+                                  },
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 16,
+                                      vertical: 14,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: AppColors.surfaceContainerHigh,
+                                      borderRadius: BorderRadius.circular(14),
+                                      border: Border.all(
+                                        color: const Color(0x2210B981),
+                                      ),
+                                    ),
+                                    child: Row(
+                                      children: [
+                                        Container(
+                                          padding: const EdgeInsets.all(8),
+                                          decoration: BoxDecoration(
+                                            color: const Color(0x1A10B981),
+                                            borderRadius: BorderRadius.circular(
+                                              10,
+                                            ),
+                                          ),
+                                          child: const Icon(
+                                            Icons.payments_rounded,
+                                            color: Color(0xFF34D399),
+                                            size: 18,
+                                          ),
+                                        ),
+                                        const SizedBox(width: 14),
+                                        Expanded(
+                                          child: Column(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            children: [
+                                              const Text(
+                                                'Uang Tunai',
+                                                style: TextStyle(
+                                                  color: AppColors.textPrimary,
+                                                  fontSize: 14,
+                                                  fontWeight: FontWeight.w600,
+                                                ),
+                                              ),
+                                              Text(
+                                                'Saldo saat ini: ${fmt.compact(cashBalance)}',
+                                                style: const TextStyle(
+                                                  color: AppColors.textMuted,
+                                                  fontSize: 11,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                        const Icon(
+                                          Icons.arrow_forward_ios_rounded,
+                                          color: AppColors.textMuted,
+                                          size: 14,
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      );
+                    },
+                    child: NeumorphicContainer(
+                      width: 36,
+                      height: 36,
+                      borderRadius: 10,
+                      padding: EdgeInsets.zero,
+                      child: const Center(
+                        child: Icon(
+                          Icons.edit_rounded,
+                          color: AppColors.textSecondary,
+                          size: 16,
+                        ),
+                      ),
                     ),
                   ),
-                ),
+                  const SizedBox(width: 8),
+                  GestureDetector(
+                    onTap: () => setState(() => _showBalance = !_showBalance),
+                    child: NeumorphicContainer(
+                      width: 36,
+                      height: 36,
+                      borderRadius: 10,
+                      padding: EdgeInsets.zero,
+                      child: Center(
+                        child: Icon(
+                          _showBalance
+                              ? Icons.visibility_outlined
+                              : Icons.visibility_off_outlined,
+                          color: AppColors.textPrimary,
+                          size: 18,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
           const SizedBox(height: 14),
           AnimatedSwitcher(
             duration: const Duration(milliseconds: 300),
-            transitionBuilder: (child, anim) => FadeTransition(opacity: anim, child: child),
+            transitionBuilder: (child, anim) =>
+                FadeTransition(opacity: anim, child: child),
             child: _showBalance
                 ? Text(
                     key: const ValueKey('shown'),
-                    CurrencyFormatter.format(balance),
+                    fmt.format(balance),
                     style: TextStyle(
-                      color: balance >= 0 ? AppColors.textPrimary : AppColors.negativeLight,
+                      color: balance >= 0
+                          ? AppColors.textPrimary
+                          : AppColors.negativeLight,
                       fontSize: 32,
                       fontWeight: FontWeight.w800,
                       letterSpacing: -0.8,
@@ -273,19 +662,21 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             children: [
               Expanded(
                 child: _buildFlowMetric(
-                  label: 'PEMASUKAN',
+                  label: t.income.toUpperCase(),
                   amount: totalIncome,
                   color: AppColors.positive,
                   icon: Icons.arrow_downward_rounded,
+                  fmt: fmt,
                 ),
               ),
               Container(width: 1, height: 42, color: const Color(0x1AFFFFFF)),
               Expanded(
                 child: _buildFlowMetric(
-                  label: 'PENGELUARAN',
+                  label: t.expense.toUpperCase(),
                   amount: totalExpense,
                   color: AppColors.negative,
                   icon: Icons.arrow_upward_rounded,
+                  fmt: fmt,
                 ),
               ),
             ],
@@ -305,6 +696,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     required double amount,
     required Color color,
     required IconData icon,
+    required CurrencyFormatter fmt,
   }) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 8),
@@ -334,7 +726,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
-                  CurrencyFormatter.format(amount),
+                  fmt.format(amount),
                   style: TextStyle(
                     color: color,
                     fontWeight: FontWeight.w700,
@@ -381,7 +773,11 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             Flexible(
               child: Text(
                 '${(incomeRatio * 100).round()}% Pemasukan',
-                style: const TextStyle(color: AppColors.positive, fontSize: 10, fontWeight: FontWeight.w600),
+                style: const TextStyle(
+                  color: AppColors.positive,
+                  fontSize: 10,
+                  fontWeight: FontWeight.w600,
+                ),
                 overflow: TextOverflow.ellipsis,
               ),
             ),
@@ -389,7 +785,11 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             Flexible(
               child: Text(
                 '${100 - (incomeRatio * 100).round()}% Pengeluaran',
-                style: const TextStyle(color: AppColors.negative, fontSize: 10, fontWeight: FontWeight.w600),
+                style: const TextStyle(
+                  color: AppColors.negative,
+                  fontSize: 10,
+                  fontWeight: FontWeight.w600,
+                ),
                 overflow: TextOverflow.ellipsis,
               ),
             ),
@@ -399,17 +799,23 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     );
   }
 
-  Widget _buildMiniBarChart(List<TransactionModel> transactions) {
+  Widget _buildMiniBarChart(
+    List<TransactionModel> transactions,
+    CurrencyFormatter fmt,
+    AppTranslations t,
+  ) {
     // Generate data for the last 7 days
     final now = DateTime.now();
     final List<Map<String, dynamic>> dailyData = [];
 
     for (int i = 6; i >= 0; i--) {
       final date = now.subtract(Duration(days: i));
-      final dayTxs = transactions.where((t) =>
-          t.date.year == date.year &&
-          t.date.month == date.month &&
-          t.date.day == date.day);
+      final dayTxs = transactions.where(
+        (t) =>
+            t.date.year == date.year &&
+            t.date.month == date.month &&
+            t.date.day == date.day,
+      );
 
       final income = dayTxs
           .where((t) => t.type == 'income')
@@ -440,13 +846,13 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         children: [
           Row(
             children: [
-              const Expanded(
+              Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'ANALITIK ARUS KAS (7 HARI)',
-                      style: TextStyle(
+                      t.cashFlow7d.toUpperCase(),
+                      style: const TextStyle(
                         color: AppColors.textMuted,
                         fontSize: 11,
                         fontWeight: FontWeight.w700,
@@ -454,10 +860,13 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                       ),
                       overflow: TextOverflow.ellipsis,
                     ),
-                    SizedBox(height: 2),
-                    Text(
+                    const SizedBox(height: 2),
+                    const Text(
                       'Arus kas 7 hari terakhir',
-                      style: TextStyle(color: AppColors.textSecondary, fontSize: 11),
+                      style: TextStyle(
+                        color: AppColors.textSecondary,
+                        fontSize: 11,
+                      ),
                       overflow: TextOverflow.ellipsis,
                     ),
                   ],
@@ -489,9 +898,11 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                       final isIncome = rodIndex == 0;
                       final val = rod.toY;
                       return BarTooltipItem(
-                        '${isIncome ? "Masuk: " : "Keluar: "}${CurrencyFormatter.format(val)}',
+                        '${isIncome ? "Masuk: " : "Keluar: "}${fmt.format(val)}',
                         TextStyle(
-                          color: isIncome ? AppColors.positive : AppColors.negative,
+                          color: isIncome
+                              ? AppColors.positive
+                              : AppColors.negative,
                           fontWeight: FontWeight.bold,
                           fontSize: 11,
                         ),
@@ -501,9 +912,15 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                 ),
                 titlesData: FlTitlesData(
                   show: true,
-                  topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                  rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                  leftTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                  topTitles: const AxisTitles(
+                    sideTitles: SideTitles(showTitles: false),
+                  ),
+                  rightTitles: const AxisTitles(
+                    sideTitles: SideTitles(showTitles: false),
+                  ),
+                  leftTitles: const AxisTitles(
+                    sideTitles: SideTitles(showTitles: false),
+                  ),
                   bottomTitles: AxisTitles(
                     sideTitles: SideTitles(
                       showTitles: true,
@@ -540,14 +957,18 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                         toY: data['income'] as double,
                         color: AppColors.positive,
                         width: 8,
-                        borderRadius: const BorderRadius.vertical(top: Radius.circular(4)),
+                        borderRadius: const BorderRadius.vertical(
+                          top: Radius.circular(4),
+                        ),
                       ),
                       // Bar Pengeluaran (Rose)
                       BarChartRodData(
                         toY: data['expense'] as double,
                         color: AppColors.negative,
                         width: 8,
-                        borderRadius: const BorderRadius.vertical(top: Radius.circular(4)),
+                        borderRadius: const BorderRadius.vertical(
+                          top: Radius.circular(4),
+                        ),
                       ),
                     ],
                   );
@@ -570,62 +991,80 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
           decoration: BoxDecoration(shape: BoxShape.circle, color: color),
         ),
         const SizedBox(width: 4),
-        Text(text, style: TextStyle(color: color, fontSize: 11, fontWeight: FontWeight.bold)),
+        Text(
+          text,
+          style: TextStyle(
+            color: color,
+            fontSize: 11,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
       ],
     );
   }
 
-  Widget _buildTransactionItem(TransactionModel tx, int index) {
+  Widget _buildTransactionItem(
+    TransactionModel tx,
+    int index,
+    CurrencyFormatter fmt,
+  ) {
     final isIncome = tx.type == 'income';
     final color = isIncome ? AppColors.positive : AppColors.negative;
 
     return NeumorphicContainer(
-      borderRadius: 16,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.15),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Icon(
-              _categoryIcon(tx.categoryId),
-              color: color,
-              size: 18,
-            ),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  tx.note.isEmpty ? tx.categoryId : tx.note,
-                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(fontSize: 14, fontWeight: FontWeight.w600),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+          borderRadius: 16,
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: color.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(12),
                 ),
-                const SizedBox(height: 2),
-                Text(
-                  '${DateFormat('dd MMM').format(tx.date)} · ${tx.paymentMethod.toUpperCase()}',
-                  style: const TextStyle(color: AppColors.textMuted, fontSize: 11),
+                child: Icon(
+                  _categoryIcon(tx.categoryId),
+                  color: color,
+                  size: 18,
                 ),
-              ],
-            ),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      tx.note.isEmpty ? tx.categoryId : tx.note,
+                      style: Theme.of(context).textTheme.bodyLarge
+                          ?.copyWith(fontSize: 14, fontWeight: FontWeight.w600),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      '${DateFormat('dd MMM').format(tx.date)} · ${tx.paymentMethod.toUpperCase()}',
+                      style: const TextStyle(
+                        color: AppColors.textMuted,
+                        fontSize: 11,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Text(
+                '${isIncome ? '+' : '-'} ${fmt.format(tx.amount)}',
+                style: TextStyle(
+                  color: color,
+                  fontWeight: FontWeight.w700,
+                  fontSize: 14,
+                ),
+              ),
+            ],
           ),
-          Text(
-            '${isIncome ? '+' : '-'} ${CurrencyFormatter.format(tx.amount)}',
-            style: TextStyle(
-              color: color,
-              fontWeight: FontWeight.w700,
-              fontSize: 14,
-            ),
-          ),
-        ],
-      ),
-    ).animate().fadeIn(delay: (index * 60).ms, duration: 250.ms).slideX(begin: 0.04);
+        )
+        .animate()
+        .fadeIn(delay: (index * 60).ms, duration: 250.ms)
+        .slideX(begin: 0.04);
   }
 
   IconData _categoryIcon(String category) {
@@ -656,5 +1095,4 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         return Icons.receipt_rounded;
     }
   }
-
 }

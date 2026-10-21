@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:intl/intl.dart';
+import 'package:watch_your_money/core/i18n/app_translations.dart';
+import 'package:watch_your_money/core/settings/settings_provider.dart';
 import 'package:watch_your_money/core/theme/app_colors.dart';
 import 'package:watch_your_money/core/theme/neumorphic_container.dart';
 import 'package:watch_your_money/core/utils/currency_formatter.dart';
@@ -18,13 +20,9 @@ class StatisticsScreen extends ConsumerStatefulWidget {
 
 class _StatisticsScreenState extends ConsumerState<StatisticsScreen> {
   String _period = 'MONTH'; // 'WEEK' | 'MONTH' | 'ALL'
-  static const _periods = [
-    {'key': 'WEEK', 'label': 'Minggu'},
-    {'key': 'MONTH', 'label': 'Bulan'},
-    {'key': 'ALL', 'label': 'Semua'},
-  ];
 
-  String _chartType = 'BAR'; // 'BAR' (Diagram Batang) | 'PIE' (Diagram Lingkaran)
+  String _chartType =
+      'BAR'; // 'BAR' (Diagram Batang) | 'PIE' (Diagram Lingkaran)
 
   List<TransactionModel> _filter(List<TransactionModel> all) {
     final now = DateTime.now();
@@ -51,6 +49,15 @@ class _StatisticsScreenState extends ConsumerState<StatisticsScreen> {
   @override
   Widget build(BuildContext context) {
     final transactionsAsync = ref.watch(transactionsProvider);
+    final settings = ref.watch(appSettingsProvider);
+    final fmt = CurrencyFormatter.from(settings);
+    final t = AppTranslations.of(settings.languageCode);
+
+    final periods = [
+      {'key': 'WEEK', 'label': t.weekLabel},
+      {'key': 'MONTH', 'label': t.monthLabel},
+      {'key': 'ALL', 'label': t.allLabel},
+    ];
 
     return Scaffold(
       backgroundColor: AppColors.surfaceCanvas,
@@ -68,11 +75,17 @@ class _StatisticsScreenState extends ConsumerState<StatisticsScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text('Analitik Keuangan', style: Theme.of(context).textTheme.headlineLarge),
+                          Text(
+                            'Analitik Keuangan',
+                            style: Theme.of(context).textTheme.headlineLarge,
+                          ),
                           const SizedBox(height: 2),
                           const Text(
                             'Pantau arus kas kamu',
-                            style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
+                            style: TextStyle(
+                              color: AppColors.textSecondary,
+                              fontSize: 13,
+                            ),
                             overflow: TextOverflow.ellipsis,
                           ),
                         ],
@@ -86,7 +99,9 @@ class _StatisticsScreenState extends ConsumerState<StatisticsScreen> {
                       borderRadius: 12,
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
-                        children: _periods.map((p) => _buildPeriodBtn(p['key']!, p['label']!)).toList(),
+                        children: periods
+                            .map((p) => _buildPeriodBtn(p['key']!, p['label']!))
+                            .toList(),
                       ),
                     ),
                   ],
@@ -98,8 +113,12 @@ class _StatisticsScreenState extends ConsumerState<StatisticsScreen> {
             transactionsAsync.when(
               data: (all) {
                 final txs = _filter(all);
-                final totalIncome = txs.where((t) => t.type == 'income').fold(0.0, (s, t) => s + t.amount);
-                final totalExpense = txs.where((t) => t.type == 'expense').fold(0.0, (s, t) => s + t.amount);
+                final totalIncome = txs
+                    .where((tx) => tx.type == 'income')
+                    .fold(0.0, (s, tx) => s + tx.amount);
+                final totalExpense = txs
+                    .where((tx) => tx.type == 'expense')
+                    .fold(0.0, (s, tx) => s + tx.amount);
                 final byCategory = _groupByCategory(txs);
 
                 return SliverList(
@@ -107,27 +126,33 @@ class _StatisticsScreenState extends ConsumerState<StatisticsScreen> {
                     // ── Inflow & Outflow Summary Cards ─────────────
                     Padding(
                       padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
-                      child: Row(
-                        children: [
-                          Expanded(
-                            child: _buildSummaryCard(
-                              label: 'PEMASUKAN',
-                              amount: totalIncome,
-                              color: AppColors.positive,
-                              icon: Icons.arrow_downward_rounded,
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: _buildSummaryCard(
-                              label: 'PENGELUARAN',
-                              amount: totalExpense,
-                              color: AppColors.negative,
-                              icon: Icons.arrow_upward_rounded,
-                            ),
-                          ),
-                        ],
-                      ).animate().fadeIn(delay: 100.ms, duration: 300.ms).slideY(begin: 0.1),
+                      child:
+                          Row(
+                                children: [
+                                  Expanded(
+                                    child: _buildSummaryCard(
+                                      label: t.income.toUpperCase(),
+                                      amount: totalIncome,
+                                      color: AppColors.positive,
+                                      icon: Icons.arrow_downward_rounded,
+                                      fmt: fmt,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: _buildSummaryCard(
+                                      label: t.expense.toUpperCase(),
+                                      amount: totalExpense,
+                                      color: AppColors.negative,
+                                      icon: Icons.arrow_upward_rounded,
+                                      fmt: fmt,
+                                    ),
+                                  ),
+                                ],
+                              )
+                              .animate()
+                              .fadeIn(delay: 100.ms, duration: 300.ms)
+                              .slideY(begin: 0.1),
                     ),
 
                     // ── Chart Type Switcher: Batang vs Lingkaran ───
@@ -156,8 +181,16 @@ class _StatisticsScreenState extends ConsumerState<StatisticsScreen> {
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                _buildChartTypeBtn('BAR', 'Batang', Icons.bar_chart_rounded),
-                                _buildChartTypeBtn('PIE', 'Lingkaran', Icons.pie_chart_outline_rounded),
+                                _buildChartTypeBtn(
+                                  'BAR',
+                                  'Batang',
+                                  Icons.bar_chart_rounded,
+                                ),
+                                _buildChartTypeBtn(
+                                  'PIE',
+                                  'Lingkaran',
+                                  Icons.pie_chart_outline_rounded,
+                                ),
                               ],
                             ),
                           ),
@@ -172,8 +205,17 @@ class _StatisticsScreenState extends ConsumerState<StatisticsScreen> {
                         borderRadius: 24,
                         padding: const EdgeInsets.all(20),
                         child: _chartType == 'BAR'
-                            ? _buildBarChart(txs, totalIncome, totalExpense)
-                            : _buildPieChart(byCategory, totalIncome, totalExpense),
+                            ? _buildBarChart(
+                                txs,
+                                totalIncome,
+                                totalExpense,
+                                fmt,
+                              )
+                            : _buildPieChart(
+                                byCategory,
+                                totalIncome,
+                                totalExpense,
+                              ),
                       ).animate().fadeIn(delay: 150.ms, duration: 300.ms),
                     ),
 
@@ -188,7 +230,8 @@ class _StatisticsScreenState extends ConsumerState<StatisticsScreen> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
                                 children: [
                                   const Expanded(
                                     child: Text(
@@ -205,17 +248,33 @@ class _StatisticsScreenState extends ConsumerState<StatisticsScreen> {
                                   const SizedBox(width: 8),
                                   Text(
                                     '${byCategory.length} Kategori',
-                                    style: const TextStyle(color: AppColors.textSecondary, fontSize: 11, fontWeight: FontWeight.w600),
+                                    style: const TextStyle(
+                                      color: AppColors.textSecondary,
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w600,
+                                    ),
                                   ),
                                 ],
                               ),
                               const SizedBox(height: 18),
-                              ...byCategory.entries.toList().asMap().entries.map((entry) {
-                                final index = entry.key;
-                                final e = entry.value;
-                                final color = AppColors.chartPalette[index % AppColors.chartPalette.length];
-                                return _buildCategoryRow(e.key, e.value, totalExpense, color);
-                              }),
+                              ...byCategory.entries
+                                  .toList()
+                                  .asMap()
+                                  .entries
+                                  .map((entry) {
+                                    final index = entry.key;
+                                    final e = entry.value;
+                                    final color =
+                                        AppColors.chartPalette[index %
+                                            AppColors.chartPalette.length];
+                                    return _buildCategoryRow(
+                                      e.key,
+                                      e.value,
+                                      totalExpense,
+                                      color,
+                                      fmt,
+                                    );
+                                  }),
                             ],
                           ),
                         ).animate().fadeIn(delay: 200.ms, duration: 300.ms),
@@ -226,10 +285,19 @@ class _StatisticsScreenState extends ConsumerState<StatisticsScreen> {
                 );
               },
               loading: () => const SliverFillRemaining(
-                child: Center(child: CircularProgressIndicator(color: AppColors.accentWhite)),
+                child: Center(
+                  child: CircularProgressIndicator(
+                    color: AppColors.accentWhite,
+                  ),
+                ),
               ),
               error: (err, _) => SliverFillRemaining(
-                child: Center(child: Text('Error: $err', style: const TextStyle(color: AppColors.negative))),
+                child: Center(
+                  child: Text(
+                    'Error: $err',
+                    style: const TextStyle(color: AppColors.negative),
+                  ),
+                ),
               ),
             ),
           ],
@@ -275,7 +343,11 @@ class _StatisticsScreenState extends ConsumerState<StatisticsScreen> {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, size: 13, color: active ? AppColors.textPrimary : AppColors.textMuted),
+            Icon(
+              icon,
+              size: 13,
+              color: active ? AppColors.textPrimary : AppColors.textMuted,
+            ),
             const SizedBox(width: 4),
             Text(
               label,
@@ -296,6 +368,7 @@ class _StatisticsScreenState extends ConsumerState<StatisticsScreen> {
     required double amount,
     required Color color,
     required IconData icon,
+    required CurrencyFormatter fmt,
   }) {
     return NeumorphicContainer(
       borderRadius: 18,
@@ -331,7 +404,7 @@ class _StatisticsScreenState extends ConsumerState<StatisticsScreen> {
           ),
           const SizedBox(height: 10),
           Text(
-            CurrencyFormatter.format(amount),
+            fmt.format(amount),
             style: TextStyle(
               color: color,
               fontSize: 16,
@@ -345,34 +418,68 @@ class _StatisticsScreenState extends ConsumerState<StatisticsScreen> {
     );
   }
 
-  Widget _buildBarChart(List<TransactionModel> txs, double totalIncome, double totalExpense) {
+  Widget _buildBarChart(
+    List<TransactionModel> txs,
+    double totalIncome,
+    double totalExpense,
+    CurrencyFormatter fmt,
+  ) {
     final now = DateTime.now();
     final List<Map<String, dynamic>> barData = [];
 
     if (_period == 'WEEK') {
       for (int i = 6; i >= 0; i--) {
         final d = now.subtract(Duration(days: i));
-        final dayTxs = txs.where((t) => t.date.year == d.year && t.date.month == d.month && t.date.day == d.day);
-        final inc = dayTxs.where((t) => t.type == 'income').fold(0.0, (s, t) => s + t.amount);
-        final exp = dayTxs.where((t) => t.type == 'expense').fold(0.0, (s, t) => s + t.amount);
-        barData.add({'label': DateFormat('E').format(d), 'income': inc, 'expense': exp});
+        final dayTxs = txs.where(
+          (t) =>
+              t.date.year == d.year &&
+              t.date.month == d.month &&
+              t.date.day == d.day,
+        );
+        final inc = dayTxs
+            .where((t) => t.type == 'income')
+            .fold(0.0, (s, t) => s + t.amount);
+        final exp = dayTxs
+            .where((t) => t.type == 'expense')
+            .fold(0.0, (s, t) => s + t.amount);
+        barData.add({
+          'label': DateFormat('E').format(d),
+          'income': inc,
+          'expense': exp,
+        });
       }
     } else if (_period == 'MONTH') {
       for (int w = 1; w <= 4; w++) {
         final startDay = (w - 1) * 7 + 1;
         final endDay = w * 7;
-        final weekTxs = txs.where((t) => t.date.day >= startDay && t.date.day <= endDay);
-        final inc = weekTxs.where((t) => t.type == 'income').fold(0.0, (s, t) => s + t.amount);
-        final exp = weekTxs.where((t) => t.type == 'expense').fold(0.0, (s, t) => s + t.amount);
+        final weekTxs = txs.where(
+          (t) => t.date.day >= startDay && t.date.day <= endDay,
+        );
+        final inc = weekTxs
+            .where((t) => t.type == 'income')
+            .fold(0.0, (s, t) => s + t.amount);
+        final exp = weekTxs
+            .where((t) => t.type == 'expense')
+            .fold(0.0, (s, t) => s + t.amount);
         barData.add({'label': 'Mgg $w', 'income': inc, 'expense': exp});
       }
     } else {
       for (int m = 5; m >= 0; m--) {
         final date = DateTime(now.year, now.month - m, 1);
-        final monthTxs = txs.where((t) => t.date.year == date.year && t.date.month == date.month);
-        final inc = monthTxs.where((t) => t.type == 'income').fold(0.0, (s, t) => s + t.amount);
-        final exp = monthTxs.where((t) => t.type == 'expense').fold(0.0, (s, t) => s + t.amount);
-        barData.add({'label': DateFormat('MMM').format(date), 'income': inc, 'expense': exp});
+        final monthTxs = txs.where(
+          (t) => t.date.year == date.year && t.date.month == date.month,
+        );
+        final inc = monthTxs
+            .where((t) => t.type == 'income')
+            .fold(0.0, (s, t) => s + t.amount);
+        final exp = monthTxs
+            .where((t) => t.type == 'expense')
+            .fold(0.0, (s, t) => s + t.amount);
+        barData.add({
+          'label': DateFormat('MMM').format(date),
+          'income': inc,
+          'expense': exp,
+        });
       }
     }
 
@@ -392,7 +499,11 @@ class _StatisticsScreenState extends ConsumerState<StatisticsScreen> {
             const Expanded(
               child: Text(
                 'Arus Kas',
-                style: TextStyle(color: AppColors.textPrimary, fontSize: 13, fontWeight: FontWeight.bold),
+                style: TextStyle(
+                  color: AppColors.textPrimary,
+                  fontSize: 13,
+                  fontWeight: FontWeight.bold,
+                ),
                 overflow: TextOverflow.ellipsis,
               ),
             ),
@@ -421,9 +532,11 @@ class _StatisticsScreenState extends ConsumerState<StatisticsScreen> {
                   getTooltipItem: (group, groupIndex, rod, rodIndex) {
                     final isIncome = rodIndex == 0;
                     return BarTooltipItem(
-                      '${isIncome ? "Masuk: " : "Keluar: "}${CurrencyFormatter.format(rod.toY)}',
+                      '${isIncome ? "Masuk: " : "Keluar: "}${fmt.format(rod.toY)}',
                       TextStyle(
-                        color: isIncome ? AppColors.positive : AppColors.negative,
+                        color: isIncome
+                            ? AppColors.positive
+                            : AppColors.negative,
                         fontWeight: FontWeight.bold,
                         fontSize: 11,
                       ),
@@ -433,9 +546,15 @@ class _StatisticsScreenState extends ConsumerState<StatisticsScreen> {
               ),
               titlesData: FlTitlesData(
                 show: true,
-                topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                leftTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                topTitles: const AxisTitles(
+                  sideTitles: SideTitles(showTitles: false),
+                ),
+                rightTitles: const AxisTitles(
+                  sideTitles: SideTitles(showTitles: false),
+                ),
+                leftTitles: const AxisTitles(
+                  sideTitles: SideTitles(showTitles: false),
+                ),
                 bottomTitles: AxisTitles(
                   sideTitles: SideTitles(
                     showTitles: true,
@@ -471,13 +590,17 @@ class _StatisticsScreenState extends ConsumerState<StatisticsScreen> {
                       toY: data['income'] as double,
                       color: AppColors.positive,
                       width: 9,
-                      borderRadius: const BorderRadius.vertical(top: Radius.circular(5)),
+                      borderRadius: const BorderRadius.vertical(
+                        top: Radius.circular(5),
+                      ),
                     ),
                     BarChartRodData(
                       toY: data['expense'] as double,
                       color: AppColors.negative,
                       width: 9,
-                      borderRadius: const BorderRadius.vertical(top: Radius.circular(5)),
+                      borderRadius: const BorderRadius.vertical(
+                        top: Radius.circular(5),
+                      ),
                     ),
                   ],
                 );
@@ -489,11 +612,20 @@ class _StatisticsScreenState extends ConsumerState<StatisticsScreen> {
     );
   }
 
-  Widget _buildPieChart(Map<String, double> byCategory, double totalIncome, double totalExpense) {
+  Widget _buildPieChart(
+    Map<String, double> byCategory,
+    double totalIncome,
+    double totalExpense,
+  ) {
     if (byCategory.isEmpty) {
       return const SizedBox(
         height: 180,
-        child: Center(child: Text('Belum ada data pengeluaran', style: TextStyle(color: AppColors.textMuted))),
+        child: Center(
+          child: Text(
+            'Belum ada data pengeluaran',
+            style: TextStyle(color: AppColors.textMuted),
+          ),
+        ),
       );
     }
 
@@ -504,7 +636,11 @@ class _StatisticsScreenState extends ConsumerState<StatisticsScreen> {
       children: [
         const Text(
           'Proporsi Pengeluaran per Kategori',
-          style: TextStyle(color: AppColors.textPrimary, fontSize: 13, fontWeight: FontWeight.bold),
+          style: TextStyle(
+            color: AppColors.textPrimary,
+            fontSize: 13,
+            fontWeight: FontWeight.bold,
+          ),
         ),
         const SizedBox(height: 20),
         SizedBox(
@@ -516,8 +652,11 @@ class _StatisticsScreenState extends ConsumerState<StatisticsScreen> {
               sections: entries.asMap().entries.map((entry) {
                 final idx = entry.key;
                 final e = entry.value;
-                final color = AppColors.chartPalette[idx % AppColors.chartPalette.length];
-                final pct = totalExpense > 0 ? (e.value / totalExpense * 100).toStringAsFixed(0) : '0';
+                final color =
+                    AppColors.chartPalette[idx % AppColors.chartPalette.length];
+                final pct = totalExpense > 0
+                    ? (e.value / totalExpense * 100).toStringAsFixed(0)
+                    : '0';
 
                 return PieChartSectionData(
                   value: e.value,
@@ -542,7 +681,8 @@ class _StatisticsScreenState extends ConsumerState<StatisticsScreen> {
           children: entries.asMap().entries.map((entry) {
             final idx = entry.key;
             final e = entry.value;
-            final color = AppColors.chartPalette[idx % AppColors.chartPalette.length];
+            final color =
+                AppColors.chartPalette[idx % AppColors.chartPalette.length];
             return _buildDotLegend(e.key, color);
           }).toList(),
         ),
@@ -554,14 +694,31 @@ class _StatisticsScreenState extends ConsumerState<StatisticsScreen> {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Container(width: 8, height: 8, decoration: BoxDecoration(shape: BoxShape.circle, color: color)),
+        Container(
+          width: 8,
+          height: 8,
+          decoration: BoxDecoration(shape: BoxShape.circle, color: color),
+        ),
         const SizedBox(width: 5),
-        Text(label, style: TextStyle(color: color, fontSize: 11, fontWeight: FontWeight.bold)),
+        Text(
+          label,
+          style: TextStyle(
+            color: color,
+            fontSize: 11,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
       ],
     );
   }
 
-  Widget _buildCategoryRow(String category, double amount, double totalExpense, Color color) {
+  Widget _buildCategoryRow(
+    String category,
+    double amount,
+    double totalExpense,
+    Color color,
+    CurrencyFormatter fmt,
+  ) {
     final pct = totalExpense > 0 ? (amount / totalExpense * 100) : 0.0;
 
     return Padding(
@@ -576,13 +733,20 @@ class _StatisticsScreenState extends ConsumerState<StatisticsScreen> {
                     Container(
                       width: 10,
                       height: 10,
-                      decoration: BoxDecoration(shape: BoxShape.circle, color: color),
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: color,
+                      ),
                     ),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
                         category,
-                        style: const TextStyle(color: AppColors.textPrimary, fontSize: 13, fontWeight: FontWeight.w600),
+                        style: const TextStyle(
+                          color: AppColors.textPrimary,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                        ),
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),
@@ -594,13 +758,21 @@ class _StatisticsScreenState extends ConsumerState<StatisticsScreen> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
-                    CurrencyFormatter.format(amount),
-                    style: const TextStyle(color: AppColors.textPrimary, fontSize: 13, fontWeight: FontWeight.bold),
+                    fmt.format(amount),
+                    style: const TextStyle(
+                      color: AppColors.textPrimary,
+                      fontSize: 13,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                   const SizedBox(width: 6),
                   Text(
                     '(${pct.toStringAsFixed(1)}%)',
-                    style: TextStyle(color: color, fontSize: 11, fontWeight: FontWeight.bold),
+                    style: TextStyle(
+                      color: color,
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ],
               ),

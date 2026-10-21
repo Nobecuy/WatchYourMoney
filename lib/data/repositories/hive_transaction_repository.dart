@@ -13,5 +13,9 @@ class HiveTransactionRepository implements TransactionRepository {
       _box.put(transaction.id, transaction);
 
   @override
+  Future<void> updateTransaction(TransactionModel transaction) async =>
+      _box.put(transaction.id, transaction);
+
+  @override
   Future<void> deleteTransaction(String id) async => _box.delete(id);
 }

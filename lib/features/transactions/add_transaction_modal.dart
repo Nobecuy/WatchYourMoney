@@ -3,18 +3,23 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:intl/intl.dart';
+import 'package:watch_your_money/core/settings/settings_provider.dart';
 import 'package:watch_your_money/core/theme/app_colors.dart';
 import 'package:watch_your_money/core/theme/neumorphic_container.dart';
+import 'package:watch_your_money/core/utils/currency_formatter.dart';
 import 'package:watch_your_money/domain/models/transaction_model.dart';
 import 'package:watch_your_money/features/dashboard/dashboard_provider.dart';
 
 class AddTransactionModal extends ConsumerStatefulWidget {
   final String initialType;
   final String? initialPaymentMethod;
+  final TransactionModel? transactionToEdit;
+
   const AddTransactionModal({
     super.key,
     this.initialType = 'expense',
     this.initialPaymentMethod,
+    this.transactionToEdit,
   });
 
   @override
@@ -53,11 +58,28 @@ class _AddTransactionModalState extends ConsumerState<AddTransactionModal> {
   @override
   void initState() {
     super.initState();
-    _type = widget.initialType;
-    _paymentMethod = widget.initialPaymentMethod ?? 'cash';
-    _selectedCategory = _type == 'expense'
-        ? _expenseCategories.first['name'] as String
-        : _incomeCategories.first['name'] as String;
+    final editTx = widget.transactionToEdit;
+    if (editTx != null) {
+      _type = editTx.type;
+      _paymentMethod = editTx.paymentMethod;
+      _amountController.text = editTx.amount.toInt().toString();
+      _noteController.text = editTx.note;
+      _selectedDate = editTx.date;
+      _selectedCategory = editTx.categoryId;
+
+      // Ensure custom or adjustment category exists in list
+      final catList = _type == 'expense' ? _expenseCategories : _incomeCategories;
+      final exists = catList.any((c) => (c['name'] as String).toLowerCase() == _selectedCategory.toLowerCase());
+      if (!exists) {
+        catList.insert(0, {'name': _selectedCategory, 'icon': Icons.label_outline_rounded});
+      }
+    } else {
+      _type = widget.initialType;
+      _paymentMethod = widget.initialPaymentMethod ?? 'cash';
+      _selectedCategory = _type == 'expense'
+          ? _expenseCategories.first['name'] as String
+          : _incomeCategories.first['name'] as String;
+    }
   }
 
   @override
@@ -160,6 +182,53 @@ class _AddTransactionModalState extends ConsumerState<AddTransactionModal> {
     );
   }
 
+  Future<void> _deleteThisTransaction() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.surfaceContainerHigh,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text(
+          'Hapus Transaksi?',
+          style: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.w600, fontSize: 16),
+        ),
+        content: const Text(
+          'Tindakan ini tidak bisa dibatalkan.',
+          style: TextStyle(color: AppColors.textMuted, fontSize: 13),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Batal', style: TextStyle(color: AppColors.textSecondary)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.negative,
+              foregroundColor: Colors.white,
+            ),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Hapus'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true && mounted) {
+      setState(() => _isLoading = true);
+      await ref.read(transactionRepositoryProvider).deleteTransaction(widget.transactionToEdit!.id);
+      ref.invalidate(transactionsProvider);
+      if (mounted) {
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Transaksi telah dihapus'),
+            backgroundColor: AppColors.surfaceContainerHigh,
+          ),
+        );
+      }
+    }
+  }
+
   Future<void> _saveTransaction() async {
     final rawText = _amountController.text.replaceAll('.', '').trim();
     final amount = double.tryParse(rawText);
@@ -177,8 +246,9 @@ class _AddTransactionModalState extends ConsumerState<AddTransactionModal> {
     setState(() => _isLoading = true);
 
     try {
-      final newTx = TransactionModel(
-        id: const Uuid().v4(),
+      final isEdit = widget.transactionToEdit != null;
+      final tx = TransactionModel(
+        id: isEdit ? widget.transactionToEdit!.id : const Uuid().v4(),
         amount: amount,
         type: _type,
         categoryId: _selectedCategory,
@@ -187,11 +257,22 @@ class _AddTransactionModalState extends ConsumerState<AddTransactionModal> {
         paymentMethod: _paymentMethod,
       );
 
-      await ref.read(transactionRepositoryProvider).addTransaction(newTx);
+      if (isEdit) {
+        await ref.read(transactionRepositoryProvider).updateTransaction(tx);
+      } else {
+        await ref.read(transactionRepositoryProvider).addTransaction(tx);
+      }
+
       ref.invalidate(transactionsProvider);
 
       if (mounted) {
         Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(isEdit ? 'Transaksi berhasil diperbarui' : 'Transaksi berhasil disimpan'),
+            backgroundColor: AppColors.surfaceContainerHigh,
+          ),
+        );
       }
     } catch (e) {
       if (mounted) {
@@ -208,6 +289,8 @@ class _AddTransactionModalState extends ConsumerState<AddTransactionModal> {
 
   @override
   Widget build(BuildContext context) {
+    final settings = ref.watch(appSettingsProvider);
+    final fmt = CurrencyFormatter.from(settings);
     final isExpense = _type == 'expense';
     final currentCategories = isExpense ? _expenseCategories : _incomeCategories;
 
@@ -247,23 +330,42 @@ class _AddTransactionModalState extends ConsumerState<AddTransactionModal> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
-                    'Tambah Transaksi',
+                    widget.transactionToEdit != null ? 'Edit Transaksi' : 'Tambah Transaksi',
                     style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                           fontSize: 20,
                           fontWeight: FontWeight.bold,
                         ),
                   ),
-                  GestureDetector(
-                    onTap: () => Navigator.pop(context),
-                    child: const NeumorphicContainer(
-                      width: 34,
-                      height: 34,
-                      borderRadius: 10,
-                      padding: EdgeInsets.zero,
-                      child: Center(
-                        child: Icon(Icons.close_rounded, size: 18, color: AppColors.textSecondary),
+                  Row(
+                    children: [
+                      if (widget.transactionToEdit != null) ...[
+                        GestureDetector(
+                          onTap: _deleteThisTransaction,
+                          child: const NeumorphicContainer(
+                            width: 34,
+                            height: 34,
+                            borderRadius: 10,
+                            padding: EdgeInsets.zero,
+                            child: Center(
+                              child: Icon(Icons.delete_outline_rounded, size: 18, color: AppColors.negativeLight),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                      ],
+                      GestureDetector(
+                        onTap: () => Navigator.pop(context),
+                        child: const NeumorphicContainer(
+                          width: 34,
+                          height: 34,
+                          borderRadius: 10,
+                          padding: EdgeInsets.zero,
+                          child: Center(
+                            child: Icon(Icons.close_rounded, size: 18, color: AppColors.textSecondary),
+                          ),
+                        ),
                       ),
-                    ),
+                    ],
                   ),
                 ],
               ).animate().fadeIn(duration: 200.ms),
@@ -388,7 +490,7 @@ class _AddTransactionModalState extends ConsumerState<AddTransactionModal> {
                     Row(
                       children: [
                         Text(
-                          'Rp',
+                          fmt.symbol,
                           style: TextStyle(
                             color: isExpense ? const Color(0xFFE2E8F0) : AppColors.accentWhite,
                             fontSize: 22,
@@ -646,7 +748,9 @@ class _AddTransactionModalState extends ConsumerState<AddTransactionModal> {
                             child: CircularProgressIndicator(strokeWidth: 2.5, color: AppColors.accentBlack),
                           )
                         : Text(
-                            'Simpan ${isExpense ? 'Pengeluaran' : 'Pemasukan'}',
+                            widget.transactionToEdit != null
+                                ? 'Simpan Perubahan'
+                                : 'Simpan ${isExpense ? 'Pengeluaran' : 'Pemasukan'}',
                             style: const TextStyle(
                               color: AppColors.accentBlack,
                               fontSize: 15,

@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:intl/intl.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:watch_your_money/core/i18n/app_translations.dart';
+import 'package:watch_your_money/core/settings/settings_provider.dart';
 import 'package:watch_your_money/core/theme/app_colors.dart';
 import 'package:watch_your_money/core/theme/neumorphic_container.dart';
 import 'package:watch_your_money/core/utils/currency_formatter.dart';
@@ -10,8 +12,7 @@ import 'package:watch_your_money/domain/models/transaction_model.dart';
 import 'package:watch_your_money/features/auth/auth_provider.dart';
 import 'package:watch_your_money/features/auth/auth_screen.dart';
 import 'package:watch_your_money/features/dashboard/dashboard_provider.dart';
-import 'package:watch_your_money/features/ai_assistant/ai_assistant_screen.dart';
-import 'package:watch_your_money/features/transactions/add_transaction_modal.dart';
+import 'package:watch_your_money/features/wallet/adjust_balance_modal.dart';
 import 'package:watch_your_money/features/profile/profile_screen.dart';
 
 class WalletScreen extends ConsumerStatefulWidget {
@@ -50,7 +51,11 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
         ),
         title: const Row(
           children: [
-            Icon(Icons.logout_rounded, color: AppColors.negativeLight, size: 22),
+            Icon(
+              Icons.logout_rounded,
+              color: AppColors.negativeLight,
+              size: 22,
+            ),
             SizedBox(width: 10),
             Text(
               'Keluar Akun?',
@@ -69,13 +74,18 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text('Batal', style: TextStyle(color: AppColors.textMuted)),
+            child: const Text(
+              'Batal',
+              style: TextStyle(color: AppColors.textMuted),
+            ),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.negative,
               foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
             ),
             onPressed: () => Navigator.of(ctx).pop(true),
             child: const Text('Keluar'),
@@ -96,16 +106,19 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
     }
   }
 
-
-
-  void _openAddModal(String type, {String? paymentMethod}) {
+  void _openAdjustBalance({
+    required String initialMethod,
+    required double cardBalance,
+    required double cashBalance,
+  }) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (context) => AddTransactionModal(
-        initialType: type,
-        initialPaymentMethod: paymentMethod,
+      builder: (_) => AdjustBalanceModal(
+        initialMethod: initialMethod,
+        currentCardBalance: cardBalance,
+        currentCashBalance: cashBalance,
       ),
     );
   }
@@ -113,6 +126,9 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
   @override
   Widget build(BuildContext context) {
     final transactionsAsync = ref.watch(transactionsProvider);
+    final settings = ref.watch(appSettingsProvider);
+    final fmt = CurrencyFormatter.from(settings);
+    final t = AppTranslations.of(settings.languageCode);
 
     return Scaffold(
       backgroundColor: AppColors.surfaceCanvas,
@@ -122,7 +138,10 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
             child: CircularProgressIndicator(color: AppColors.accentWhite),
           ),
           error: (e, st) => Center(
-            child: Text('Gagal memuat wallet: $e', style: const TextStyle(color: Colors.red)),
+            child: Text(
+              'Gagal memuat wallet: $e',
+              style: const TextStyle(color: Colors.red),
+            ),
           ),
           data: (transactions) {
             // Calculate balances
@@ -131,18 +150,18 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
             double cashIncome = 0;
             double cashExpense = 0;
 
-            for (final t in transactions) {
-              if (t.paymentMethod == 'card') {
-                if (t.type == 'income') {
-                  cardIncome += t.amount;
+            for (final tx in transactions) {
+              if (tx.paymentMethod == 'card') {
+                if (tx.type == 'income') {
+                  cardIncome += tx.amount;
                 } else {
-                  cardExpense += t.amount;
+                  cardExpense += tx.amount;
                 }
               } else {
-                if (t.type == 'income') {
-                  cashIncome += t.amount;
+                if (tx.type == 'income') {
+                  cashIncome += tx.amount;
                 } else {
-                  cashExpense += t.amount;
+                  cashExpense += tx.amount;
                 }
               }
             }
@@ -152,12 +171,11 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
             final totalBalance = cardBalance + cashBalance;
 
             // Filter transactions
-            final filteredTransactions = transactions.where((t) {
-              if (_selectedFilter == 'card') return t.paymentMethod == 'card';
-              if (_selectedFilter == 'cash') return t.paymentMethod == 'cash';
+            final filteredTransactions = transactions.where((tx) {
+              if (_selectedFilter == 'card') return tx.paymentMethod == 'card';
+              if (_selectedFilter == 'cash') return tx.paymentMethod == 'cash';
               return true;
-            }).toList()
-              ..sort((a, b) => b.date.compareTo(a.date));
+            }).toList()..sort((a, b) => b.date.compareTo(a.date));
 
             return CustomScrollView(
               physics: const BouncingScrollPhysics(),
@@ -185,11 +203,16 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
                                 ),
                                 const SizedBox(width: 8),
                                 Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 7,
+                                    vertical: 3,
+                                  ),
                                   decoration: BoxDecoration(
                                     color: const Color(0x1A6366F1),
                                     borderRadius: BorderRadius.circular(999),
-                                    border: Border.all(color: const Color(0x336366F1)),
+                                    border: Border.all(
+                                      color: const Color(0x336366F1),
+                                    ),
                                   ),
                                   child: const Text(
                                     '2 ACCOUNTS',
@@ -204,9 +227,9 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
                               ],
                             ),
                             const SizedBox(height: 2),
-                            const Text(
-                              'Kelola saldo kartu & uang tunai',
-                              style: TextStyle(
+                            Text(
+                              t.wallet,
+                              style: const TextStyle(
                                 color: AppColors.textMuted,
                                 fontSize: 12,
                               ),
@@ -219,7 +242,9 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
                           borderRadius: 999,
                           padding: EdgeInsets.zero,
                           onTap: () => Navigator.of(context).push(
-                            MaterialPageRoute(builder: (_) => const ProfileScreen()),
+                            MaterialPageRoute(
+                              builder: (_) => const ProfileScreen(),
+                            ),
                           ),
                           child: Center(
                             child: Icon(
@@ -237,12 +262,21 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
                 // ── Master Net Worth Banner ─────────────────────────
                 SliverToBoxAdapter(
                   child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 6),
-                    child: _buildTotalNetWorthCard(
-                      totalBalance: totalBalance,
-                      cardBalance: cardBalance,
-                      cashBalance: cashBalance,
-                    ).animate().fadeIn(delay: 50.ms, duration: 300.ms).slideY(begin: 0.08),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 20,
+                      vertical: 6,
+                    ),
+                    child:
+                        _buildTotalNetWorthCard(
+                              totalBalance: totalBalance,
+                              cardBalance: cardBalance,
+                              cashBalance: cashBalance,
+                              fmt: fmt,
+                              t: t,
+                            )
+                            .animate()
+                            .fadeIn(delay: 50.ms, duration: 300.ms)
+                            .slideY(begin: 0.08),
                   ),
                 ),
 
@@ -253,9 +287,9 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        const Text(
-                          'Dompet Aktif',
-                          style: TextStyle(
+                        Text(
+                          t.activeWallet,
+                          style: const TextStyle(
                             color: AppColors.textPrimary,
                             fontSize: 16,
                             fontWeight: FontWeight.w700,
@@ -264,9 +298,17 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
                         // Dot indicators for Card PageView
                         Row(
                           children: [
-                            _buildPageDot(0, _currentCardIndex == 0, const Color(0xFF6366F1)),
+                            _buildPageDot(
+                              0,
+                              _currentCardIndex == 0,
+                              const Color(0xFF6366F1),
+                            ),
                             const SizedBox(width: 5),
-                            _buildPageDot(1, _currentCardIndex == 1, const Color(0xFF10B981)),
+                            _buildPageDot(
+                              1,
+                              _currentCardIndex == 1,
+                              const Color(0xFF10B981),
+                            ),
                           ],
                         ),
                       ],
@@ -276,69 +318,40 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
 
                 // ── Interactive Digital Cards Carousel ──────────────
                 SliverToBoxAdapter(
-                  child: SizedBox(
-                    height: 205,
-                    child: PageView(
-                      controller: _pageController,
-                      physics: const BouncingScrollPhysics(),
-                      onPageChanged: (index) {
-                        setState(() => _currentCardIndex = index);
-                      },
-                      children: [
-                        // Card 1: Debit / Digital Card
-                        _buildDebitCard(
-                          balance: cardBalance,
-                          income: cardIncome,
-                          expense: cardExpense,
-                        ),
-                        // Card 2: Cash / Dompet Fisik
-                        _buildCashCard(
-                          balance: cashBalance,
-                          income: cashIncome,
-                          expense: cashExpense,
-                        ),
-                      ],
-                    ),
-                  ).animate().fadeIn(delay: 100.ms, duration: 300.ms).scale(begin: const Offset(0.95, 0.95)),
-                ),
-
-                // ── Quick Actions Hub ───────────────────────────────
-                SliverToBoxAdapter(
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        _buildQuickActionButton(
-                          title: 'Catat Kartu',
-                          icon: Icons.credit_card_rounded,
-                          color: const Color(0xFF818CF8),
-                          onTap: () => _openAddModal('expense', paymentMethod: 'card'),
-                        ),
-                        _buildQuickActionButton(
-                          title: 'Catat Tunai',
-                          icon: Icons.payments_rounded,
-                          color: const Color(0xFF34D399),
-                          onTap: () => _openAddModal('expense', paymentMethod: 'cash'),
-                        ),
-                        _buildQuickActionButton(
-                          title: 'Pemasukan',
-                          icon: Icons.add_circle_outline_rounded,
-                          color: const Color(0xFFFBBF24),
-                          onTap: () => _openAddModal('income'),
-                        ),
-                        _buildQuickActionButton(
-                          title: 'Tanya AI',
-                          icon: Icons.auto_awesome_rounded,
-                          color: const Color(0xFFA78BFA),
-                          onTap: () => Navigator.push(
-                            context,
-                            MaterialPageRoute(builder: (_) => const AIAssistantScreen()),
-                          ),
-                        ),
-                      ],
-                    ).animate().fadeIn(delay: 150.ms, duration: 300.ms).slideY(begin: 0.1),
-                  ),
+                  child:
+                      SizedBox(
+                            height: 205,
+                            child: PageView(
+                              controller: _pageController,
+                              physics: const BouncingScrollPhysics(),
+                              onPageChanged: (index) {
+                                setState(() => _currentCardIndex = index);
+                              },
+                              children: [
+                                // Card 1: Debit / Digital Card
+                                _buildDebitCard(
+                                  balance: cardBalance,
+                                  income: cardIncome,
+                                  expense: cardExpense,
+                                  cardBalance: cardBalance,
+                                  cashBalance: cashBalance,
+                                  fmt: fmt,
+                                ),
+                                // Card 2: Cash / Dompet Fisik
+                                _buildCashCard(
+                                  balance: cashBalance,
+                                  income: cashIncome,
+                                  expense: cashExpense,
+                                  cardBalance: cardBalance,
+                                  cashBalance: cashBalance,
+                                  fmt: fmt,
+                                ),
+                              ],
+                            ),
+                          )
+                          .animate()
+                          .fadeIn(delay: 100.ms, duration: 300.ms)
+                          .scale(begin: const Offset(0.95, 0.95)),
                 ),
 
                 // ── Filter Segment for Activity ─────────────────────
@@ -347,10 +360,10 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
                     padding: const EdgeInsets.fromLTRB(20, 20, 20, 10),
                     child: Row(
                       children: [
-                        const Expanded(
+                        Expanded(
                           child: Text(
-                            'Riwayat Dompet',
-                            style: TextStyle(
+                            t.walletHistory,
+                            style: const TextStyle(
                               color: AppColors.textPrimary,
                               fontSize: 15,
                               fontWeight: FontWeight.w700,
@@ -370,7 +383,7 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              _buildFilterPill('Semua', 'all'),
+                              _buildFilterPill(t.allLabel, 'all'),
                               _buildFilterPill('💳 Kartu', 'card'),
                               _buildFilterPill('💵 Tunai', 'cash'),
                             ],
@@ -394,7 +407,9 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
                             decoration: BoxDecoration(
                               shape: BoxShape.circle,
                               color: AppColors.surfaceContainer,
-                              border: Border.all(color: const Color(0x12FFFFFF)),
+                              border: Border.all(
+                                color: const Color(0x12FFFFFF),
+                              ),
                             ),
                             child: const Icon(
                               Icons.receipt_long_outlined,
@@ -403,9 +418,9 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
                             ),
                           ),
                           const SizedBox(height: 12),
-                          const Text(
-                            'Belum ada transaksi di dompet ini',
-                            style: TextStyle(
+                          Text(
+                            t.noTransactions,
+                            style: const TextStyle(
                               color: AppColors.textSecondary,
                               fontSize: 13,
                               fontWeight: FontWeight.w600,
@@ -428,13 +443,10 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
                   SliverPadding(
                     padding: const EdgeInsets.fromLTRB(20, 0, 20, 32),
                     sliver: SliverList(
-                      delegate: SliverChildBuilderDelegate(
-                        (context, index) {
-                          final tx = filteredTransactions[index];
-                          return _buildTransactionItem(tx, index);
-                        },
-                        childCount: filteredTransactions.length,
-                      ),
+                      delegate: SliverChildBuilderDelegate((context, index) {
+                        final tx = filteredTransactions[index];
+                        return _buildTransactionItem(tx, index, fmt);
+                      }, childCount: filteredTransactions.length),
                     ),
                   ),
 
@@ -495,17 +507,29 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
                                 child: OutlinedButton.icon(
                                   style: OutlinedButton.styleFrom(
                                     foregroundColor: AppColors.textSecondary,
-                                    side: const BorderSide(color: Color(0x1AFFFFFF)),
-                                    padding: const EdgeInsets.symmetric(vertical: 11),
+                                    side: const BorderSide(
+                                      color: Color(0x1AFFFFFF),
+                                    ),
+                                    padding: const EdgeInsets.symmetric(
+                                      vertical: 11,
+                                    ),
                                     shape: RoundedRectangleBorder(
                                       borderRadius: BorderRadius.circular(12),
                                     ),
                                   ),
                                   onPressed: () => Navigator.of(context).push(
-                                    MaterialPageRoute(builder: (_) => const ProfileScreen()),
+                                    MaterialPageRoute(
+                                      builder: (_) => const ProfileScreen(),
+                                    ),
                                   ),
-                                  icon: const Icon(Icons.person_outline_rounded, size: 16),
-                                  label: const Text('Profil Akun', style: TextStyle(fontSize: 12)),
+                                  icon: const Icon(
+                                    Icons.person_outline_rounded,
+                                    size: 16,
+                                  ),
+                                  label: Text(
+                                    t.profile,
+                                    style: const TextStyle(fontSize: 12),
+                                  ),
                                 ),
                               ),
                               const SizedBox(width: 10),
@@ -513,15 +537,25 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
                                 child: OutlinedButton.icon(
                                   style: OutlinedButton.styleFrom(
                                     foregroundColor: AppColors.negativeLight,
-                                    side: const BorderSide(color: Color(0x33F43F5E)),
-                                    padding: const EdgeInsets.symmetric(vertical: 11),
+                                    side: const BorderSide(
+                                      color: Color(0x33F43F5E),
+                                    ),
+                                    padding: const EdgeInsets.symmetric(
+                                      vertical: 11,
+                                    ),
                                     shape: RoundedRectangleBorder(
                                       borderRadius: BorderRadius.circular(12),
                                     ),
                                   ),
                                   onPressed: () => _logout(context),
-                                  icon: const Icon(Icons.logout_rounded, size: 16),
-                                  label: const Text('Keluar', style: TextStyle(fontSize: 12)),
+                                  icon: const Icon(
+                                    Icons.logout_rounded,
+                                    size: 16,
+                                  ),
+                                  label: Text(
+                                    t.logout,
+                                    style: const TextStyle(fontSize: 12),
+                                  ),
                                 ),
                               ),
                             ],
@@ -544,10 +578,16 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
     required double totalBalance,
     required double cardBalance,
     required double cashBalance,
+    required CurrencyFormatter fmt,
+    required AppTranslations t,
   }) {
     // Proportions for visual balance distribution bar
-    final totalPositive = (cardBalance > 0 ? cardBalance : 0) + (cashBalance > 0 ? cashBalance : 0);
-    final cardRatio = totalPositive > 0 ? (cardBalance > 0 ? (cardBalance / totalPositive) : 0.0) : 0.5;
+    final totalPositive =
+        (cardBalance > 0 ? cardBalance : 0) +
+        (cashBalance > 0 ? cashBalance : 0);
+    final cardRatio = totalPositive > 0
+        ? (cardBalance > 0 ? (cardBalance / totalPositive) : 0.0)
+        : 0.5;
     final cashRatio = 1.0 - cardRatio;
 
     return NeumorphicContainer(
@@ -558,19 +598,27 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text(
-                'TOTAL SALDO GABUNGAN',
-                style: TextStyle(
-                  color: AppColors.textMuted,
-                  fontSize: 10,
-                  letterSpacing: 1.2,
-                  fontWeight: FontWeight.w700,
+              Flexible(
+                child: Text(
+                  t.totalBalance.toUpperCase(),
+                  style: const TextStyle(
+                    color: AppColors.textMuted,
+                    fontSize: 10,
+                    letterSpacing: 1.2,
+                    fontWeight: FontWeight.w700,
+                  ),
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
+              const SizedBox(width: 8),
               GestureDetector(
-                onTap: () => setState(() => _isBalanceVisible = !_isBalanceVisible),
+                onTap: () =>
+                    setState(() => _isBalanceVisible = !_isBalanceVisible),
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
                     color: AppColors.surfaceContainerHigh,
                     borderRadius: BorderRadius.circular(8),
@@ -603,7 +651,7 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
           ),
           const SizedBox(height: 10),
           Text(
-            _isBalanceVisible ? CurrencyFormatter.format(totalBalance) : '••••••••',
+            _isBalanceVisible ? fmt.format(totalBalance) : '••••••••',
             style: const TextStyle(
               color: AppColors.textPrimary,
               fontSize: 28,
@@ -652,10 +700,16 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
                       ),
                     ),
                     const SizedBox(width: 6),
-                    const Text('Kartu Debit: ', style: TextStyle(color: AppColors.textSecondary, fontSize: 11)),
+                    Text(
+                      '${t.cardBalance}: ',
+                      style: const TextStyle(
+                        color: AppColors.textSecondary,
+                        fontSize: 11,
+                      ),
+                    ),
                     Flexible(
                       child: Text(
-                        _isBalanceVisible ? CurrencyFormatter.format(cardBalance) : '••••',
+                        _isBalanceVisible ? fmt.format(cardBalance) : '••••',
                         style: const TextStyle(
                           color: Color(0xFF818CF8),
                           fontSize: 11,
@@ -681,10 +735,16 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
                       ),
                     ),
                     const SizedBox(width: 6),
-                    const Text('Tunai: ', style: TextStyle(color: AppColors.textSecondary, fontSize: 11)),
+                    Text(
+                      '${t.cashBalance}: ',
+                      style: const TextStyle(
+                        color: AppColors.textSecondary,
+                        fontSize: 11,
+                      ),
+                    ),
                     Flexible(
                       child: Text(
-                        _isBalanceVisible ? CurrencyFormatter.format(cashBalance) : '••••',
+                        _isBalanceVisible ? fmt.format(cashBalance) : '••••',
                         style: const TextStyle(
                           color: Color(0xFF34D399),
                           fontSize: 11,
@@ -708,6 +768,9 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
     required double balance,
     required double income,
     required double expense,
+    required double cardBalance,
+    required double cashBalance,
+    required CurrencyFormatter fmt,
   }) {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
@@ -717,11 +780,7 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
         gradient: const LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [
-            Color(0xFF2E2A72),
-            Color(0xFF1A1744),
-            Color(0xFF0F0E2A),
-          ],
+          colors: [Color(0xFF2E2A72), Color(0xFF1A1744), Color(0xFF0F0E2A)],
         ),
         border: Border.all(color: const Color(0x33818CF8), width: 1.2),
         boxShadow: const [
@@ -785,7 +844,10 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
                           gradient: const LinearGradient(
                             colors: [Color(0xFFFDE68A), Color(0xFFD97706)],
                           ),
-                          border: Border.all(color: const Color(0x66FFFFFF), width: 0.8),
+                          border: Border.all(
+                            color: const Color(0x66FFFFFF),
+                            width: 0.8,
+                          ),
                         ),
                         child: Center(
                           child: Container(
@@ -793,7 +855,10 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
                             height: 16,
                             decoration: BoxDecoration(
                               borderRadius: BorderRadius.circular(3),
-                              border: Border.all(color: const Color(0x55000000), width: 0.8),
+                              border: Border.all(
+                                color: const Color(0x55000000),
+                                width: 0.8,
+                              ),
                             ),
                           ),
                         ),
@@ -807,7 +872,10 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
                     ],
                   ),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 3,
+                    ),
                     decoration: BoxDecoration(
                       color: const Color(0x22FFFFFF),
                       borderRadius: BorderRadius.circular(6),
@@ -839,14 +907,58 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
                     ),
                   ),
                   const SizedBox(height: 2),
-                  Text(
-                    _isBalanceVisible ? CurrencyFormatter.format(balance) : '••••••••',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 22,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: -0.5,
-                    ),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      Expanded(
+                        child: Text(
+                          _isBalanceVisible ? fmt.format(balance) : '••••••••',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 22,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: -0.5,
+                          ),
+                        ),
+                      ),
+                      GestureDetector(
+                        onTap: () => _openAdjustBalance(
+                          initialMethod: 'card',
+                          cardBalance: cardBalance,
+                          cashBalance: cashBalance,
+                        ),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: const Color(0x33818CF8),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: const Color(0x55818CF8)),
+                          ),
+                          child: const Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.edit_rounded,
+                                size: 11,
+                                color: Color(0xFFCDD0FA),
+                              ),
+                              SizedBox(width: 4),
+                              Text(
+                                'Edit',
+                                style: TextStyle(
+                                  color: Color(0xFFCDD0FA),
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
@@ -882,9 +994,15 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
                   ),
                   Row(
                     children: [
-                      _buildFlowBadge('+${CurrencyFormatter.compact(income)}', isIncome: true),
+                      _buildFlowBadge(
+                        '+${fmt.compact(income)}',
+                        isIncome: true,
+                      ),
                       const SizedBox(width: 6),
-                      _buildFlowBadge('-${CurrencyFormatter.compact(expense)}', isIncome: false),
+                      _buildFlowBadge(
+                        '-${fmt.compact(expense)}',
+                        isIncome: false,
+                      ),
                     ],
                   ),
                 ],
@@ -901,6 +1019,9 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
     required double balance,
     required double income,
     required double expense,
+    required double cardBalance,
+    required double cashBalance,
+    required CurrencyFormatter fmt,
   }) {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
@@ -910,11 +1031,7 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
         gradient: const LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [
-            Color(0xFF064E3B),
-            Color(0xFF042F2E),
-            Color(0xFF021C1C),
-          ],
+          colors: [Color(0xFF064E3B), Color(0xFF042F2E), Color(0xFF021C1C)],
         ),
         border: Border.all(color: const Color(0x3334D399), width: 1.2),
         boxShadow: const [
@@ -969,7 +1086,10 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
                     ),
                   ),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 3,
+                    ),
                     decoration: BoxDecoration(
                       color: const Color(0x22FFFFFF),
                       borderRadius: BorderRadius.circular(6),
@@ -1001,14 +1121,58 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
                     ),
                   ),
                   const SizedBox(height: 2),
-                  Text(
-                    _isBalanceVisible ? CurrencyFormatter.format(balance) : '••••••••',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 22,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: -0.5,
-                    ),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      Expanded(
+                        child: Text(
+                          _isBalanceVisible ? fmt.format(balance) : '••••••••',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 22,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: -0.5,
+                          ),
+                        ),
+                      ),
+                      GestureDetector(
+                        onTap: () => _openAdjustBalance(
+                          initialMethod: 'cash',
+                          cardBalance: cardBalance,
+                          cashBalance: cashBalance,
+                        ),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: const Color(0x3334D399),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: const Color(0x5534D399)),
+                          ),
+                          child: const Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.edit_rounded,
+                                size: 11,
+                                color: Color(0xFFAAF0D1),
+                              ),
+                              SizedBox(width: 4),
+                              Text(
+                                'Edit',
+                                style: TextStyle(
+                                  color: Color(0xFFAAF0D1),
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
@@ -1033,18 +1197,21 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
                       SizedBox(height: 2),
                       Text(
                         'Siap digunakan langsung',
-                        style: TextStyle(
-                          color: Color(0x77FFFFFF),
-                          fontSize: 9,
-                        ),
+                        style: TextStyle(color: Color(0x77FFFFFF), fontSize: 9),
                       ),
                     ],
                   ),
                   Row(
                     children: [
-                      _buildFlowBadge('+${CurrencyFormatter.compact(income)}', isIncome: true),
+                      _buildFlowBadge(
+                        '+${fmt.compact(income)}',
+                        isIncome: true,
+                      ),
                       const SizedBox(width: 6),
-                      _buildFlowBadge('-${CurrencyFormatter.compact(expense)}', isIncome: false),
+                      _buildFlowBadge(
+                        '-${fmt.compact(expense)}',
+                        isIncome: false,
+                      ),
                     ],
                   ),
                 ],
@@ -1091,50 +1258,6 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
     );
   }
 
-  // ── Quick Action Button ─────────────────────────────────────────────
-  Widget _buildQuickActionButton({
-    required String title,
-    required IconData icon,
-    required Color color,
-    required VoidCallback onTap,
-  }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Column(
-        children: [
-          NeumorphicContainer(
-            width: 54,
-            height: 54,
-            borderRadius: 16,
-            padding: EdgeInsets.zero,
-            child: Center(
-              child: Container(
-                width: 38,
-                height: 38,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: color.withValues(alpha: 0.14),
-                ),
-                child: Center(
-                  child: Icon(icon, color: color, size: 20),
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            title,
-            style: const TextStyle(
-              color: AppColors.textSecondary,
-              fontSize: 11,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   // ── Filter Pill for Transaction List ────────────────────────────────
   Widget _buildFilterPill(String title, String value) {
     final isSelected = _selectedFilter == value;
@@ -1144,7 +1267,9 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
         duration: const Duration(milliseconds: 150),
         padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
         decoration: BoxDecoration(
-          color: isSelected ? AppColors.surfaceContainerHigh : Colors.transparent,
+          color: isSelected
+              ? AppColors.surfaceContainerHigh
+              : Colors.transparent,
           borderRadius: BorderRadius.circular(8),
           border: Border.all(
             color: isSelected ? const Color(0x22FFFFFF) : Colors.transparent,
@@ -1163,105 +1288,130 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
   }
 
   // ── Transaction Item ────────────────────────────────────────────────
-  Widget _buildTransactionItem(TransactionModel tx, int index) {
+  Widget _buildTransactionItem(
+    TransactionModel tx,
+    int index,
+    CurrencyFormatter fmt,
+  ) {
     final isIncome = tx.type == 'income';
     final isCard = tx.paymentMethod == 'card';
 
     return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
-      child: NeumorphicContainer(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-        borderRadius: 16,
-        child: Row(
-          children: [
-            // Category Icon
-            Container(
-              width: 42,
-              height: 42,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(12),
-                color: (isIncome ? AppColors.positive : AppColors.negative)
-                    .withValues(alpha: 0.12),
-                border: Border.all(
-                  color: (isIncome ? AppColors.positiveLight : AppColors.negativeLight)
-                      .withValues(alpha: 0.25),
-                ),
-              ),
-              child: Center(
-                child: Icon(
-                  _categoryIcon(tx.categoryId),
-                  color: isIncome ? AppColors.positiveLight : AppColors.negativeLight,
-                  size: 20,
-                ),
-              ),
-            ),
-            const SizedBox(width: 12),
-
-            // Note & Date & Method Tag
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    tx.note.isNotEmpty ? tx.note : tx.categoryId,
-                    style: const TextStyle(
-                      color: AppColors.textPrimary,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700,
+          padding: const EdgeInsets.only(bottom: 10),
+          child: NeumorphicContainer(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            borderRadius: 16,
+            child: Row(
+              children: [
+                // Category Icon
+                Container(
+                  width: 42,
+                  height: 42,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(12),
+                    color: (isIncome ? AppColors.positive : AppColors.negative)
+                        .withValues(alpha: 0.12),
+                    border: Border.all(
+                      color:
+                          (isIncome
+                                  ? AppColors.positiveLight
+                                  : AppColors.negativeLight)
+                              .withValues(alpha: 0.25),
                     ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
                   ),
-                  const SizedBox(height: 3),
-                  Row(
+                  child: Center(
+                    child: Icon(
+                      _categoryIcon(tx.categoryId),
+                      color: isIncome
+                          ? AppColors.positiveLight
+                          : AppColors.negativeLight,
+                      size: 20,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+
+                // Note & Date & Method Tag
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        DateFormat('d MMM, HH:mm').format(tx.date),
+                        tx.note.isNotEmpty ? tx.note : tx.categoryId,
                         style: const TextStyle(
-                          color: AppColors.textMuted,
-                          fontSize: 11,
+                          color: AppColors.textPrimary,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
                         ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
-                      const SizedBox(width: 6),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
-                        decoration: BoxDecoration(
-                          color: (isCard ? const Color(0xFF6366F1) : const Color(0xFF10B981))
-                              .withValues(alpha: 0.15),
-                          borderRadius: BorderRadius.circular(4),
-                          border: Border.all(
-                            color: (isCard ? const Color(0xFF818CF8) : const Color(0xFF34D399))
-                                .withValues(alpha: 0.3),
+                      const SizedBox(height: 3),
+                      Row(
+                        children: [
+                          Text(
+                            DateFormat('d MMM, HH:mm').format(tx.date),
+                            style: const TextStyle(
+                              color: AppColors.textMuted,
+                              fontSize: 11,
+                            ),
                           ),
-                        ),
-                        child: Text(
-                          isCard ? '💳 Card' : '💵 Cash',
-                          style: TextStyle(
-                            color: isCard ? const Color(0xFF818CF8) : const Color(0xFF34D399),
-                            fontSize: 9,
-                            fontWeight: FontWeight.w700,
+                          const SizedBox(width: 6),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 5,
+                              vertical: 1.5,
+                            ),
+                            decoration: BoxDecoration(
+                              color:
+                                  (isCard
+                                          ? const Color(0xFF6366F1)
+                                          : const Color(0xFF10B981))
+                                      .withValues(alpha: 0.15),
+                              borderRadius: BorderRadius.circular(4),
+                              border: Border.all(
+                                color:
+                                    (isCard
+                                            ? const Color(0xFF818CF8)
+                                            : const Color(0xFF34D399))
+                                        .withValues(alpha: 0.3),
+                              ),
+                            ),
+                            child: Text(
+                              isCard ? '💳 Card' : '💵 Cash',
+                              style: TextStyle(
+                                color: isCard
+                                    ? const Color(0xFF818CF8)
+                                    : const Color(0xFF34D399),
+                                fontSize: 9,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
                           ),
-                        ),
+                        ],
                       ),
                     ],
                   ),
-                ],
-              ),
-            ),
+                ),
 
-            // Amount
-            Text(
-              '${isIncome ? '+' : '-'} ${CurrencyFormatter.format(tx.amount)}',
-              style: TextStyle(
-                color: isIncome ? AppColors.positiveLight : AppColors.negativeLight,
-                fontSize: 13,
-                fontWeight: FontWeight.w700,
-              ),
+                // Amount
+                Text(
+                  '${isIncome ? '+' : '-'} ${fmt.format(tx.amount)}',
+                  style: TextStyle(
+                    color: isIncome
+                        ? AppColors.positiveLight
+                        : AppColors.negativeLight,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
             ),
-          ],
-        ),
-      ),
-    ).animate().fadeIn(delay: (index * 40).clamp(0, 300).ms, duration: 250.ms).slideX(begin: 0.03);
+          ),
+        )
+        .animate()
+        .fadeIn(delay: (index * 40).clamp(0, 300).ms, duration: 250.ms)
+        .slideX(begin: 0.03);
   }
 
   IconData _categoryIcon(String category) {

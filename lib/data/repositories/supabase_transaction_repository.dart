@@ -52,6 +52,23 @@ class SupabaseTransactionRepository implements TransactionRepository {
   }
 
   @override
+  Future<void> updateTransaction(TransactionModel transaction) async {
+    // Update local storage first
+    await _localBox.put(transaction.id, transaction);
+
+    final userId = _client.auth.currentUser?.id;
+    if (userId == null) return;
+
+    try {
+      final json = transaction.toJson();
+      json['user_id'] = userId;
+      await _client.from('transactions').update(json).eq('id', transaction.id);
+    } catch (e) {
+      // Local box has already stored it
+    }
+  }
+
+  @override
   Future<void> deleteTransaction(String id) async {
     await _localBox.delete(id);
     try {

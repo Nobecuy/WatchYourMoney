@@ -1,7 +1,10 @@
 import 'dart:ui';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:watch_your_money/core/theme/app_colors.dart';
+import 'package:watch_your_money/core/updates/update_helper.dart';
 import 'package:watch_your_money/features/dashboard/dashboard_screen.dart';
 import 'package:watch_your_money/features/transactions/history_screen.dart';
 import 'package:watch_your_money/features/analytics/statistics_screen.dart';
@@ -9,16 +12,24 @@ import 'package:watch_your_money/features/wallet/wallet_screen.dart';
 import 'package:watch_your_money/features/ai_assistant/ai_assistant_screen.dart';
 import 'package:watch_your_money/features/transactions/add_transaction_modal.dart';
 
-class MainScreen extends StatefulWidget {
+class MainScreen extends ConsumerStatefulWidget {
   const MainScreen({super.key});
 
   @override
-  State<MainScreen> createState() => _MainScreenState();
+  ConsumerState<MainScreen> createState() => _MainScreenState();
 }
 
-class _MainScreenState extends State<MainScreen> {
+class _MainScreenState extends ConsumerState<MainScreen> {
   int _currentIndex = 0;
   bool _isMenuOpen = false;
+
+  @override
+  void initState() {
+    super.initState();
+    Future.delayed(const Duration(seconds: 3), () {
+      if (mounted) UpdateHelper.checkForUpdates(context);
+    });
+  }
 
   final List<Widget> _pages = const [
     DashboardScreen(),
@@ -60,10 +71,7 @@ class _MainScreenState extends State<MainScreen> {
         // ── Base Scaffold ──────────────────────────────────────────
         Scaffold(
           backgroundColor: AppColors.surfaceCanvas,
-          body: IndexedStack(
-            index: _currentIndex,
-            children: _pages,
-          ),
+          body: IndexedStack(index: _currentIndex, children: _pages),
 
           // ── Bottom Navigation Bar ────────────────────────────────
           bottomNavigationBar: Container(
@@ -124,7 +132,10 @@ class _MainScreenState extends State<MainScreen> {
                 BottomNavigationBarItem(
                   icon: Padding(
                     padding: EdgeInsets.only(bottom: 2.5),
-                    child: Icon(Icons.account_balance_wallet_outlined, size: 20),
+                    child: Icon(
+                      Icons.account_balance_wallet_outlined,
+                      size: 20,
+                    ),
                   ),
                   activeIcon: Padding(
                     padding: EdgeInsets.only(bottom: 2.5),
@@ -140,7 +151,8 @@ class _MainScreenState extends State<MainScreen> {
           floatingActionButton: _isMenuOpen
               ? const SizedBox(width: 48, height: 48)
               : _buildFab(isOpen: false),
-          floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
+          floatingActionButtonLocation:
+              FloatingActionButtonLocation.centerDocked,
         ),
 
         // ── Full-Screen Backdrop & Speed-Dial Overlay (Open State) ─
@@ -152,9 +164,7 @@ class _MainScreenState extends State<MainScreen> {
               onTap: () => setState(() => _isMenuOpen = false),
               child: BackdropFilter(
                 filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-                child: Container(
-                  color: Colors.black.withValues(alpha: 0.65),
-                ),
+                child: Container(color: Colors.black.withValues(alpha: 0.65)),
               ),
             ).animate().fadeIn(duration: 200.ms),
           ),
@@ -217,9 +227,7 @@ class _MainScreenState extends State<MainScreen> {
             bottom: fabBottomOffset,
             left: 0,
             right: 0,
-            child: Center(
-              child: _buildFab(isOpen: true),
-            ),
+            child: Center(child: _buildFab(isOpen: true)),
           ),
         ],
       ],
@@ -244,9 +252,7 @@ class _MainScreenState extends State<MainScreen> {
           ),
           boxShadow: [
             BoxShadow(
-              color: isOpen
-                  ? const Color(0x66F43F5E)
-                  : const Color(0x55FFFFFF),
+              color: isOpen ? const Color(0x66F43F5E) : const Color(0x55FFFFFF),
               offset: const Offset(0, 3),
               blurRadius: isOpen ? 16 : 12,
             ),
@@ -278,56 +284,56 @@ class _MainScreenState extends State<MainScreen> {
     bool isHighlight = false,
   }) {
     return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: 52,
-        height: 52,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          color: AppColors.surfaceContainer,
-          border: Border.all(
-            color: isHighlight
-                ? const Color(0x66818CF8)
-                : color.withValues(alpha: 0.35),
-            width: isHighlight ? 1.5 : 1.2,
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: glowColor,
-              blurRadius: 16,
-              offset: const Offset(0, 3),
-            ),
-            const BoxShadow(
-              color: AppColors.shadowDarkFloat,
-              blurRadius: 12,
-              offset: Offset(3, 5),
-            ),
-            const BoxShadow(
-              color: AppColors.shadowLightFloat,
-              blurRadius: 6,
-              offset: Offset(-2, -2),
-            ),
-          ],
-        ),
-        child: Center(
+          onTap: onTap,
           child: Container(
-            width: 38,
-            height: 38,
+            width: 52,
+            height: 52,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: color.withValues(alpha: 0.15),
+              color: AppColors.surfaceContainer,
+              border: Border.all(
+                color: isHighlight
+                    ? const Color(0x66818CF8)
+                    : color.withValues(alpha: 0.35),
+                width: isHighlight ? 1.5 : 1.2,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: glowColor,
+                  blurRadius: 16,
+                  offset: const Offset(0, 3),
+                ),
+                const BoxShadow(
+                  color: AppColors.shadowDarkFloat,
+                  blurRadius: 12,
+                  offset: Offset(3, 5),
+                ),
+                const BoxShadow(
+                  color: AppColors.shadowLightFloat,
+                  blurRadius: 6,
+                  offset: Offset(-2, -2),
+                ),
+              ],
             ),
             child: Center(
-              child: Icon(
-                icon,
-                color: isHighlight ? AppColors.accentWhite : color,
-                size: 21,
+              child: Container(
+                width: 38,
+                height: 38,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: color.withValues(alpha: 0.15),
+                ),
+                child: Center(
+                  child: Icon(
+                    icon,
+                    color: isHighlight ? AppColors.accentWhite : color,
+                    size: 21,
+                  ),
+                ),
               ),
             ),
           ),
-        ),
-      ),
-    )
+        )
         .animate()
         .fadeIn(delay: delayMs.ms, duration: 220.ms)
         .scale(
