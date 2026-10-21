@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base href="$FLUTTER_BASE_HREF">
+
+  <meta charset="UTF-8">
+  <meta content="IE=Edge" http-equiv="X-UA-Compatible">
+  <meta name="description" content="Watch Your Money — Personal Finance Vault.">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+
+  <!-- iOS meta tags & icons -->
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="watchh">
+  <link rel="apple-touch-icon" href="icons/Icon-192.png">
+
+  <!-- Browser address bar theme color (Prevents white flash on mobile/desktop browsers) -->
+  <meta name="theme-color" content="#121212">
+
+  <!-- Favicon -->
+  <link rel="icon" type="image/png" href="favicon.png"/>
+
+  <title>Watch Your Money</title>
+  <link rel="manifest" href="manifest.json">
+
+  <style>
+    /* ── Dark Onyx Reset (Prevents white blink / flash on refresh) ── */
+    html, body {
+      background-color: #121212;
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    /* ── Minimalist Onyx Splash / Loading Screen ──────────────────── */
+    #loading_screen {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background-color: #121212;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      z-index: 99999;
+      opacity: 1;
+      transition: opacity 0.4s ease-out;
+      pointer-events: none;
+    }
+
+    /* ── Monochrome Minimalist Spinner: #1E1E1E border with #F0F0F0 accent ── */
+    .onyx-spinner {
+      width: 44px;
+      height: 44px;
+      border: 3.5px solid #1E1E1E;
+      border-top-color: #F0F0F0;
+      border-radius: 50%;
+      animation: onyxSpin 0.85s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+      box-sizing: border-box;
+    }
+
+    @keyframes onyxSpin {
+      0% {
+        transform: rotate(0deg);
+      }
+      100% {
+        transform: rotate(360deg);
+      }
+    }
+
+    /* ── Minimalist Label: #9E9E9E ───────────────────────────────── */
+    .onyx-label {
+      margin-top: 22px;
+      color: #9E9E9E;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Helvetica Neue", sans-serif;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 3.2px;
+      text-transform: uppercase;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <!-- Custom Loading Splash Screen rendered before Flutter Engine starts -->
+  <div id="loading_screen">
+    <div class="onyx-spinner"></div>
+    <div class="onyx-label">WATCH YOUR MONEY</div>
+  </div>
+
+  <script>
+    // Event listener: Remove loading screen seamlessly once Flutter paints the first frame
+    window.addEventListener('flutter-first-frame', function() {
+      const loader = document.getElementById('loading_screen');
+      if (loader) {
+        loader.style.opacity = '0';
+        setTimeout(function() {
+          loader.remove();
+        }, 400);
+      }
+    });
+  </script>
+
+  <!-- Flutter Web Bootstrap Script -->
+  <script src="flutter_bootstrap.js" async></script>
+</body>
+</html>

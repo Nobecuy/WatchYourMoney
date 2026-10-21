@@ -1,0 +1,54 @@
+.dart_tool/
+.packages
+.pub-cache/
+.pub/
+build/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+.pub/
+build/
+.dart_tool/
+.idea/
+.vscode/
+*.iml
+*.log
+*.patch
+*.pub
+*.so
+*.dll
+*.dylib
+*.exe
+*.apk
+*.app
+*.ipa
+*.js
+.metadata
+.packages
+.pub-cache
+.dart_tool
+.flutter-plugins
+.flutter-plugins-dependencies
+.symlinks
+.fvm/
+# Flutter related
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+.pub-cache/
+.pub/
+build/
+# IDEs
+.idea/
+.vscode/
+*.iml
+*.iws
+*.ipr
+*.ids
+# OS
+.DS_Store
+Thumbs.db
+Desktop.ini
+# Logs
+*.log
