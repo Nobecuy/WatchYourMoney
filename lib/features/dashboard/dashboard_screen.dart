@@ -51,12 +51,62 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Row(
+                      crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
-                        Text(
-                          'watchh',
-                          style: Theme.of(context).textTheme.headlineMedium,
+                        // Logo icon
+                        Container(
+                          width: 36,
+                          height: 36,
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(10),
+                            boxShadow: const [
+                              BoxShadow(
+                                color: AppColors.shadowDark,
+                                offset: Offset(3, 3),
+                                blurRadius: 8,
+                              ),
+                              BoxShadow(
+                                color: AppColors.shadowLight,
+                                offset: Offset(-2, -2),
+                                blurRadius: 6,
+                              ),
+                            ],
+                          ),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(10),
+                            child: Image.asset(
+                              'assets/images/app_icon.png',
+                              fit: BoxFit.cover,
+                            ),
+                          ),
                         ),
-                        const SizedBox(width: 8),
+                        const SizedBox(width: 10),
+                        // Brand text
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text(
+                              'watch',
+                              style: Theme.of(context).textTheme.headlineMedium
+                                  ?.copyWith(
+                                    fontSize: 20,
+                                    fontWeight: FontWeight.w800,
+                                    letterSpacing: -0.8,
+                                  ),
+                            ),
+                            Text(
+                              'your money',
+                              style: const TextStyle(
+                                color: AppColors.textMuted,
+                                fontSize: 8,
+                                letterSpacing: 2.5,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(width: 10),
                         Container(
                           padding: const EdgeInsets.symmetric(
                             horizontal: 8,
@@ -431,18 +481,18 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                                     borderRadius: BorderRadius.circular(99),
                                   ),
                                 ),
-                                const Text(
-                                  'Edit Saldo',
-                                  style: TextStyle(
+                                Text(
+                                  t.editSaldo,
+                                  style: const TextStyle(
                                     color: AppColors.textPrimary,
                                     fontSize: 16,
                                     fontWeight: FontWeight.w700,
                                   ),
                                 ),
                                 const SizedBox(height: 4),
-                                const Text(
-                                  'Pilih dompet yang ingin disesuaikan',
-                                  style: TextStyle(
+                                Text(
+                                  t.pickWallet,
+                                  style: const TextStyle(
                                     color: AppColors.textMuted,
                                     fontSize: 12,
                                   ),
@@ -488,16 +538,16 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                                             crossAxisAlignment:
                                                 CrossAxisAlignment.start,
                                             children: [
-                                              const Text(
-                                                'Kartu / Kredit',
-                                                style: TextStyle(
+                                              Text(
+                                                t.cardCredit,
+                                                style: const TextStyle(
                                                   color: AppColors.textPrimary,
                                                   fontSize: 14,
                                                   fontWeight: FontWeight.w600,
                                                 ),
                                               ),
                                               Text(
-                                                'Saldo saat ini: ${fmt.compact(cardBalance)}',
+                                                '${t.currentBalance}: ${fmt.compact(cardBalance)}',
                                                 style: const TextStyle(
                                                   color: AppColors.textMuted,
                                                   fontSize: 11,
@@ -556,16 +606,16 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                                             crossAxisAlignment:
                                                 CrossAxisAlignment.start,
                                             children: [
-                                              const Text(
-                                                'Uang Tunai',
-                                                style: TextStyle(
+                                              Text(
+                                                t.cashWalletName,
+                                                style: const TextStyle(
                                                   color: AppColors.textPrimary,
                                                   fontSize: 14,
                                                   fontWeight: FontWeight.w600,
                                                 ),
                                               ),
                                               Text(
-                                                'Saldo saat ini: ${fmt.compact(cashBalance)}',
+                                                '${t.currentBalance}: ${fmt.compact(cashBalance)}',
                                                 style: const TextStyle(
                                                   color: AppColors.textMuted,
                                                   fontSize: 11,
@@ -684,7 +734,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
 
           if (totalIncome + totalExpense > 0) ...[
             const SizedBox(height: 16),
-            _buildRatioBar(totalIncome, totalExpense),
+            _buildRatioBar(totalIncome, totalExpense, t),
           ],
         ],
       ),
@@ -742,7 +792,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     );
   }
 
-  Widget _buildRatioBar(double income, double expense) {
+  Widget _buildRatioBar(double income, double expense, AppTranslations t) {
     final total = income + expense;
     final incomeRatio = total > 0 ? (income / total).clamp(0.05, 0.95) : 0.5;
 
@@ -772,7 +822,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
           children: [
             Flexible(
               child: Text(
-                '${(incomeRatio * 100).round()}% Pemasukan',
+                '${(incomeRatio * 100).round()}% ${t.income}',
                 style: const TextStyle(
                   color: AppColors.positive,
                   fontSize: 10,
@@ -784,7 +834,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             const SizedBox(width: 6),
             Flexible(
               child: Text(
-                '${100 - (incomeRatio * 100).round()}% Pengeluaran',
+                '${100 - (incomeRatio * 100).round()}% ${t.expense}',
                 style: const TextStyle(
                   color: AppColors.negative,
                   fontSize: 10,
@@ -861,9 +911,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                       overflow: TextOverflow.ellipsis,
                     ),
                     const SizedBox(height: 2),
-                    const Text(
-                      'Arus kas 7 hari terakhir',
-                      style: TextStyle(
+                    Text(
+                      t.cashFlowSubtitle,
+                      style: const TextStyle(
                         color: AppColors.textSecondary,
                         fontSize: 11,
                       ),
@@ -876,9 +926,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
               Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  _buildLegendDot('Masuk', AppColors.positive),
+                  _buildLegendDot(t.income, AppColors.positive),
                   const SizedBox(width: 8),
-                  _buildLegendDot('Keluar', AppColors.negative),
+                  _buildLegendDot(t.expense, AppColors.negative),
                 ],
               ),
             ],
@@ -898,7 +948,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                       final isIncome = rodIndex == 0;
                       final val = rod.toY;
                       return BarTooltipItem(
-                        '${isIncome ? "Masuk: " : "Keluar: "}${fmt.format(val)}',
+                        '${isIncome ? "${t.income}: " : "${t.expense}: "}${fmt.format(val)}',
                         TextStyle(
                           color: isIncome
                               ? AppColors.positive

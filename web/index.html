@@ -36,62 +36,125 @@
       -webkit-user-select: none;
     }
 
-    /* ── Minimalist Onyx Splash / Loading Screen ──────────────────── */
+    /* ── Dark Onyx Splash Screen ──────────────────────────────────── */
     #loading_screen {
       position: fixed;
-      top: 0;
-      left: 0;
-      width: 100vw;
-      height: 100vh;
-      background-color: #121212;
+      top: 0; left: 0;
+      width: 100vw; height: 100vh;
+      background-color: #121316;
       display: flex;
       flex-direction: column;
       justify-content: center;
       align-items: center;
       z-index: 99999;
       opacity: 1;
-      transition: opacity 0.4s ease-out;
+      transition: opacity 0.5s ease-out;
       pointer-events: none;
+      gap: 0;
     }
 
-    /* ── Monochrome Minimalist Spinner: #1E1E1E border with #F0F0F0 accent ── */
-    .onyx-spinner {
-      width: 44px;
-      height: 44px;
-      border: 3.5px solid #1E1E1E;
-      border-top-color: #F0F0F0;
+    /* ── Logo icon with glow pulse ───────────────────────────────── */
+    .splash-icon-wrap {
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 20px;
+    }
+    .splash-icon-glow {
+      position: absolute;
+      width: 90px; height: 90px;
       border-radius: 50%;
-      animation: onyxSpin 0.85s cubic-bezier(0.4, 0, 0.2, 1) infinite;
-      box-sizing: border-box;
+      background: radial-gradient(circle, rgba(16,185,129,0.18) 0%, transparent 70%);
+      animation: glowPulse 2s ease-in-out infinite;
+    }
+    .splash-icon {
+      width: 72px; height: 72px;
+      border-radius: 20px;
+      box-shadow:
+        0 8px 32px rgba(0,0,0,0.6),
+        0 2px 8px rgba(0,0,0,0.4);
+      position: relative;
+      z-index: 1;
+      animation: iconFadeIn 0.6s ease-out forwards;
+      opacity: 0;
     }
 
-    @keyframes onyxSpin {
-      0% {
-        transform: rotate(0deg);
-      }
-      100% {
-        transform: rotate(360deg);
-      }
+    /* ── Brand text ──────────────────────────────────────────────── */
+    .splash-brand {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+      animation: fadeSlideUp 0.6s ease-out 0.2s forwards;
+      opacity: 0;
     }
-
-    /* ── Minimalist Label: #9E9E9E ───────────────────────────────── */
-    .onyx-label {
-      margin-top: 22px;
-      color: #9E9E9E;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Helvetica Neue", sans-serif;
-      font-size: 11px;
-      font-weight: 600;
-      letter-spacing: 3.2px;
+    .splash-name {
+      color: #F4F4F5;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      font-size: 26px;
+      font-weight: 800;
+      letter-spacing: -1px;
+      line-height: 1;
+    }
+    .splash-sub {
+      color: #52525B;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      font-size: 10px;
+      font-weight: 500;
+      letter-spacing: 3.5px;
       text-transform: uppercase;
-      text-align: center;
+    }
+
+    /* ── Loading dots ────────────────────────────────────────────── */
+    .splash-dots {
+      display: flex;
+      gap: 5px;
+      margin-top: 32px;
+      animation: fadeSlideUp 0.6s ease-out 0.4s forwards;
+      opacity: 0;
+    }
+    .splash-dots span {
+      width: 5px; height: 5px;
+      border-radius: 50%;
+      background: #10B981;
+      animation: dotBounce 1.4s ease-in-out infinite;
+    }
+    .splash-dots span:nth-child(2) { animation-delay: 0.2s; }
+    .splash-dots span:nth-child(3) { animation-delay: 0.4s; }
+
+    @keyframes glowPulse {
+      0%, 100% { opacity: 0.4; transform: scale(1); }
+      50% { opacity: 1; transform: scale(1.15); }
+    }
+    @keyframes iconFadeIn {
+      from { opacity: 0; transform: scale(0.85); }
+      to   { opacity: 1; transform: scale(1); }
+    }
+    @keyframes fadeSlideUp {
+      from { opacity: 0; transform: translateY(10px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes dotBounce {
+      0%, 60%, 100% { transform: translateY(0); opacity: 0.4; }
+      30% { transform: translateY(-6px); opacity: 1; }
     }
   </style>
 </head>
 <body>
   <!-- Custom Loading Splash Screen rendered before Flutter Engine starts -->
   <div id="loading_screen">
-    <div class="onyx-spinner"></div>
-    <div class="onyx-label">WATCH YOUR MONEY</div>
+    <div class="splash-icon-wrap">
+      <div class="splash-icon-glow"></div>
+      <img class="splash-icon" src="icons/Icon-192.png" alt="Watch Your Money" />
+    </div>
+    <div class="splash-brand">
+      <span class="splash-name">watchh</span>
+      <span class="splash-sub">your money</span>
+    </div>
+    <div class="splash-dots">
+      <span></span><span></span><span></span>
+    </div>
   </div>
 
   <script>

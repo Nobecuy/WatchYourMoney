@@ -1,4 +1,5 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -17,644 +18,846 @@ class AIAssistantScreen extends ConsumerStatefulWidget {
   ConsumerState<AIAssistantScreen> createState() => _AIAssistantScreenState();
 }
 
-class _AIAssistantScreenState extends ConsumerState<AIAssistantScreen> {
+class _AIAssistantScreenState extends ConsumerState<AIAssistantScreen>
+    with TickerProviderStateMixin {
   final List<_ChatMessage> _messages = [];
   final _controller = TextEditingController();
   final _scrollController = ScrollController();
+  final _inputFocusNode = FocusNode();
   bool _hasText = false;
   bool _isStreaming = false;
   String _currentSessionId = '';
-  bool _isHealthy = false;
-  String _healthMessage = 'Memeriksa koneksi...';
+  bool _isDev = false;
+  bool _isOllamaHealthy = false;
 
-  static const _shortcuts = [
-    ('Sisa Uang', 'Berapa sisa uangku?'),
-    ('Pengeluaran', 'Berapa total pengeluaranku?'),
-    ('Pemasukan', 'Berapa total pemasukanku?'),
-    ('Bisa Apa?', 'Kamu bisa apa aja?'),
+  late AnimationController _pulseController;
+
+  static const _quickChips = <(String, AnalysisType)>[
+    ('Ringkasan Keuangan', AnalysisType.financialOverview),
+    ('Analisis Pengeluaran', AnalysisType.spendingAnalysis),
+    ('Cek Anggaran', AnalysisType.budgetIntelligence),
+    ('Pola Transaksi', AnalysisType.transactionInsights),
+    ('Kesehatan Keuangan', AnalysisType.financialHealthCheck),
   ];
 
   @override
   void initState() {
     super.initState();
-    _currentSessionId = _generateSessionId();
+    _currentSessionId = 'session_${DateTime.now().millisecondsSinceEpoch}';
+    _isDev = isDeveloper(Supabase.instance.client.auth.currentUser?.email);
+    _pulseController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 2000),
+    )..repeat(reverse: true);
     _controller.addListener(() {
       final has = _controller.text.trim().isNotEmpty;
-      if (has != _hasText) {
-        setState(() => _hasText = has);
-      }
+      if (has != _hasText) setState(() => _hasText = has);
     });
-    _initializeChat();
+    _initChat();
   }
 
-  Future<void> _initializeChat() async {
-    // Load previous messages for this session
-    final chatRepo = ref.read(chatMessageRepositoryProvider);
-    await chatRepo.init();
-    final messages = await chatRepo.getMessages(_currentSessionId);
-
-    if (messages.isEmpty) {
-      // First time - add welcome message
+  void _initChat() {
+    Future.delayed(const Duration(milliseconds: 300), () {
+      if (!mounted) return;
       setState(() {
         _messages.add(
-          _ChatMessage(
-            text:
-                'Halo! Saya Noir, asisten keuangan pribadimu. '
-                'Tanyakan tentang saldo, pengeluaran, atau pemasukan. '
-                'Kamu juga bisa menekan tombol shortcut di bawah untuk memulai.',
+          const _ChatMessage(
+            text: 'Halo! Saya **Noir**, asisten keuangan pribadi kamu.\n\nSaya bisa bantu analisis kondisi keuanganmu secara offline — tidak perlu internet. Pilih shortcut di bawah atau ketik pertanyaanmu langsung.',
             isAI: true,
+            isWelcome: true,
           ),
         );
       });
-    } else {
-      // Restore previous messages
-      setState(() {
-        _messages.addAll(
-          messages
-              .map(
-                (m) =>
-                    _ChatMessage(text: m.content, isAI: m.role == 'assistant'),
-              )
-              .toList(),
-        );
-      });
-    }
-
-    // Check Ollama health
-    _checkHealth();
+    });
+    if (_isDev) _checkOllamaHealth();
   }
 
-  Future<void> _checkHealth() async {
+  Future<void> _checkOllamaHealth() async {
     final settings = await ref.read(noirSettingsProvider.future);
     final service = ref.read(noirAIServiceProvider(settings));
     final healthy = await service.checkHealth();
-
-    setState(() {
-      _isHealthy = healthy;
-      _healthMessage = healthy
-          ? 'Terhubung ke Ollama (${settings.modelName})'
-          : 'Tidak terhubung ke Ollama. Pastikan Ollama berjalan di ${settings.ollamaHost}';
-    });
+    if (mounted) setState(() => _isOllamaHealthy = healthy);
   }
 
   @override
   void dispose() {
     _controller.dispose();
     _scrollController.dispose();
+    _inputFocusNode.dispose();
+    _pulseController.dispose();
     super.dispose();
   }
 
-  void _scrollToBottom() {
+  void _scrollToBottom({bool fast = false}) {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (_scrollController.hasClients) {
         _scrollController.animateTo(
           _scrollController.position.maxScrollExtent,
-          duration: const Duration(milliseconds: 300),
-          curve: Curves.easeOut,
+          duration: Duration(milliseconds: fast ? 150 : 350),
+          curve: Curves.easeOutCubic,
         );
       }
     });
+  }
+
+  Future<void> _runAnalysis(AnalysisType type, String label) async {
+    if (_isStreaming) return;
+    HapticFeedback.lightImpact();
+    setState(() {
+      _messages.add(_ChatMessage(text: label, isAI: false));
+      _messages.add(
+        const _ChatMessage(text: '', isAI: true, isStreaming: true),
+      );
+      _isStreaming = true;
+    });
+    _scrollToBottom();
+    final engine = LocalFinancialEngine(ref);
+    final result = await engine.runAnalysis(type);
+    if (mounted) {
+      setState(() {
+        _messages[_messages.length - 1] = _ChatMessage(
+          text: result,
+          isAI: true,
+        );
+        _isStreaming = false;
+      });
+    }
+    _scrollToBottom();
   }
 
   void _sendMessage(String text) {
     final trimmed = text.trim();
     if (trimmed.isEmpty || _isStreaming) return;
-
+    HapticFeedback.lightImpact();
     setState(() {
       _messages.add(_ChatMessage(text: trimmed, isAI: false));
-      _messages.add(_ChatMessage(text: '', isAI: true, isStreaming: true));
+      _messages.add(
+        const _ChatMessage(text: '', isAI: true, isStreaming: true),
+      );
       _controller.clear();
       _isStreaming = true;
     });
     _scrollToBottom();
-
-    // Check if Ollama is enabled in settings
     final appSettings = ref.read(settingsProvider);
-    // Developer gate: only whitelisted accounts can use Ollama.
-    // For all other users, force offline mode regardless of the saved setting.
     final currentEmail = Supabase.instance.client.auth.currentUser?.email;
-    final useOllama = appSettings.useOllama && isDeveloper(currentEmail);
-
+    final useOllama =
+        appSettings.useOllama && isDeveloper(currentEmail) && _isOllamaHealthy;
     if (useOllama) {
-      // Stream response from Ollama AI with timeout-based fallback
-      final noirSettingsValue = ref.read(noirSettingsProvider);
-      noirSettingsValue.whenData((noirSettings) {
-        final service = ref.read(noirAIServiceProvider(noirSettings));
-        final stream = service
-            .streamResponse(userMessage: trimmed, sessionId: _currentSessionId)
-            .timeout(const Duration(seconds: 30));
+      _sendViaOllama(trimmed);
+    } else {
+      _sendViaLocal(trimmed);
+    }
+  }
 
-        String accumulatedResponse = '';
-        stream.listen(
-          (chunk) {
+  void _sendViaOllama(String text) {
+    final noirSettingsValue = ref.read(noirSettingsProvider);
+    noirSettingsValue.whenData((noirSettings) {
+      final service = ref.read(noirAIServiceProvider(noirSettings));
+      final stream = service
+          .streamResponse(userMessage: text, sessionId: _currentSessionId)
+          .timeout(const Duration(seconds: 30));
+      String acc = '';
+      stream.listen(
+        (chunk) {
+          acc += chunk;
+          if (mounted) {
             setState(() {
-              accumulatedResponse += chunk;
               _messages[_messages.length - 1] = _ChatMessage(
-                text: accumulatedResponse,
+                text: acc,
                 isAI: true,
                 isStreaming: true,
               );
             });
-            _scrollToBottom();
-          },
-          onDone: () {
-            if (accumulatedResponse.isEmpty) {
-              // Ollama returned nothing — fall back to local engine
-              _fallbackToLocal(trimmed);
-            } else {
+            _scrollToBottom(fast: true);
+          }
+        },
+        onDone: () {
+          if (acc.isEmpty) {
+            _sendViaLocal(text);
+          } else {
+            if (mounted) {
               setState(() {
                 _messages[_messages.length - 1] = _ChatMessage(
-                  text: accumulatedResponse,
+                  text: acc,
                   isAI: true,
-                  isStreaming: false,
                 );
                 _isStreaming = false;
               });
               _scrollToBottom();
             }
-          },
-          onError: (error) {
-            // Ollama error — fall back to local engine
-            _fallbackToLocal(trimmed);
-          },
-        );
-      });
-    } else {
-      // Use offline local engine directly
-      _runLocalEngine(trimmed);
-    }
+          }
+        },
+        onError: (_) => _sendViaLocal(text),
+      );
+    });
   }
 
-  void _fallbackToLocal(String text) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Mode offline digunakan — Ollama tidak terjangkau'),
-        backgroundColor: AppColors.surfaceContainerHigh,
-        duration: Duration(seconds: 2),
-      ),
-    );
-    _runLocalEngine(text);
-  }
-
-  Future<void> _runLocalEngine(String text) async {
+  Future<void> _sendViaLocal(String text) async {
     final engine = LocalFinancialEngine(ref);
-    String accumulated = '';
-
+    String acc = '';
     await for (final chunk in engine.streamResponse(
       userMessage: text,
       sessionId: _currentSessionId,
     )) {
-      accumulated += chunk;
+      acc += chunk;
       if (mounted) {
         setState(() {
           if (_messages.isNotEmpty && _messages.last.isAI) {
             _messages[_messages.length - 1] = _ChatMessage(
-              text: accumulated,
+              text: acc,
               isAI: true,
               isStreaming: false,
             );
-          } else {
-            _messages.add(_ChatMessage(text: accumulated, isAI: true));
           }
           _isStreaming = false;
         });
+        _scrollToBottom(fast: true);
       }
     }
     _scrollToBottom();
   }
 
-  String _generateSessionId() {
-    return 'session_${DateTime.now().millisecondsSinceEpoch}';
-  }
-
   @override
   Widget build(BuildContext context) {
-    final noirSettingsAsync = ref.watch(noirSettingsProvider);
-
     return Scaffold(
       backgroundColor: AppColors.surfaceCanvas,
       body: SafeArea(
         child: Column(
           children: [
-            // ── Header ─────────────────────────────────────────
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
-              child: Row(
-                children: [
-                  if (Navigator.of(context).canPop()) ...[
-                    GestureDetector(
-                      onTap: () => Navigator.of(context).pop(),
-                      child: const NeumorphicContainer(
-                        width: 40,
-                        height: 40,
-                        borderRadius: 12,
-                        padding: EdgeInsets.zero,
-                        child: Center(
-                          child: Icon(
-                            Icons.arrow_back_ios_new_rounded,
-                            size: 16,
-                            color: AppColors.textPrimary,
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 14),
-                  ],
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Noir AI',
-                          style: Theme.of(context).textTheme.headlineLarge,
-                        ),
-                        noirSettingsAsync.when(
-                          data: (settings) => Text(
-                            _isHealthy
-                                ? 'Ollama: ${settings.modelName} ✓'
-                                : 'Ollama: Tidak terhubung ✗',
-                            style: Theme.of(context).textTheme.bodySmall
-                                ?.copyWith(
-                                  color: _isHealthy
-                                      ? AppColors.positive
-                                      : AppColors.negative,
-                                ),
-                          ),
-                          loading: () => Text(
-                            _healthMessage,
-                            style: Theme.of(context).textTheme.bodySmall
-                                ?.copyWith(color: AppColors.textMuted),
-                          ),
-                          error: (_, _) => Text(
-                            'Error memuat pengaturan',
-                            style: Theme.of(context).textTheme.bodySmall
-                                ?.copyWith(color: AppColors.negative),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 4,
-                    ),
-                    decoration: BoxDecoration(
-                      color: _isHealthy
-                          ? AppColors.positive.withValues(alpha: 0.1)
-                          : AppColors.negative.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(999),
-                      border: Border.all(
-                        color: _isHealthy
-                            ? AppColors.positive.withValues(alpha: 0.3)
-                            : AppColors.negative.withValues(alpha: 0.3),
-                      ),
-                    ),
-                    child: Text(
-                      _isHealthy ? 'ONLINE' : 'OFFLINE',
-                      style: TextStyle(
-                        color: _isHealthy
-                            ? AppColors.positive
-                            : AppColors.negative,
-                        fontSize: 10,
-                        letterSpacing: 1.5,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                ],
-              ).animate().fadeIn(duration: 300.ms),
-            ),
-
-            // ── Chat Messages ───────────────────────────────────
+            _buildHeader(),
             Expanded(
-              child: ListView.builder(
-                controller: _scrollController,
-                padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
-                itemCount: _messages.length,
-                itemBuilder: (context, i) => _buildChatBubble(_messages[i], i),
-              ),
+              child: _messages.isEmpty
+                  ? _buildEmptyState()
+                  : ListView.builder(
+                      controller: _scrollController,
+                      padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                      itemCount: _messages.length,
+                      itemBuilder: (ctx, i) => _buildBubble(_messages[i], i),
+                    ),
             ),
-
-            // ── Typing Indicator ────────────────────────────────
-            if (_isStreaming)
-              Padding(
-                padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
-                child: Row(
-                  children: [
-                    Container(
-                      width: 32,
-                      height: 32,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: AppColors.positive.withValues(alpha: 0.12),
-                        border: Border.all(
-                          color: AppColors.positive.withValues(alpha: 0.25),
-                          width: 1,
-                        ),
-                      ),
-                      child: const Center(
-                        child: Icon(
-                          Icons.auto_awesome_rounded,
-                          color: AppColors.positive,
-                          size: 16,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    _TypingIndicator().animate().fadeIn(duration: 200.ms),
-                  ],
-                ),
-              ),
-
-            // ── Quick Shortcut Chips ──────────────────────────
-            _buildShortcutChips(),
-            const SizedBox(height: 6),
-
-            // ── Modern Floating Input Bar ─────────────────────
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 6, 20, 16),
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 200),
-                decoration: BoxDecoration(
-                  color: AppColors.surfaceContainer,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: _hasText || _isStreaming
-                        ? AppColors.positive.withValues(alpha: 0.5)
-                        : const Color(0x1FFFFFFF),
-                    width: 1.2,
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: _hasText || _isStreaming
-                          ? AppColors.positive.withValues(alpha: 0.12)
-                          : const Color(0x66000000),
-                      offset: const Offset(0, 4),
-                      blurRadius: 16,
-                    ),
-                  ],
-                ),
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 5),
-                child: Row(
-                  children: [
-                    // AI Sparkle Badge
-                    Container(
-                      width: 38,
-                      height: 38,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: AppColors.positive.withValues(alpha: 0.12),
-                        border: Border.all(
-                          color: AppColors.positive.withValues(alpha: 0.25),
-                          width: 1,
-                        ),
-                      ),
-                      child: const Center(
-                        child: Icon(
-                          Icons.auto_awesome_rounded,
-                          color: AppColors.positive,
-                          size: 18,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: TextField(
-                        controller: _controller,
-                        enabled: !_isStreaming,
-                        style: const TextStyle(
-                          color: AppColors.textPrimary,
-                          fontSize: 14,
-                        ),
-                        decoration: InputDecoration(
-                          hintText: _isStreaming ? 'Noir sedang mengetik...' : 'Tanyakan pola keuanganmu atau catat transaksi...',
-                          hintStyle: const TextStyle(
-                            color: AppColors.textMuted,
-                            fontSize: 13.5,
-                          ),
-                          border: InputBorder.none,
-                          enabledBorder: InputBorder.none,
-                          focusedBorder: InputBorder.none,
-                          isDense: true,
-                          contentPadding: const EdgeInsets.symmetric(
-                            vertical: 10,
-                          ),
-                        ),
-                        onSubmitted: _isStreaming
-                            ? null
-                            : (v) => _sendMessage(v),
-                      ),
-                    ),
-                    const SizedBox(width: 6),
-                    // Modern Animated Send Button
-                    GestureDetector(
-                      onTap: (_hasText && !_isStreaming)
-                          ? () => _sendMessage(_controller.text)
-                          : null,
-                      child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 200),
-                        width: 38,
-                        height: 38,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: (_hasText && !_isStreaming)
-                              ? AppColors.accentWhite
-                              : AppColors.surfaceContainerHigh,
-                          boxShadow: (_hasText && !_isStreaming)
-                              ? const [
-                                  BoxShadow(
-                                    color: Color(0x40FFFFFF),
-                                    offset: Offset(0, 2),
-                                    blurRadius: 8,
-                                  ),
-                                ]
-                              : null,
-                        ),
-                        child: Center(
-                          child: _isStreaming
-                              ? const SizedBox(
-                                  width: 20,
-                                  height: 20,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    color: AppColors.textMuted,
-                                  ),
-                                )
-                              : Icon(
-                                  Icons.arrow_upward_rounded,
-                                  color: (_hasText && !_isStreaming)
-                                      ? AppColors.accentBlack
-                                      : AppColors.textMuted,
-                                  size: 19,
-                                ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
+            _buildQuickChips(),
+            _buildInput(),
+            if (_isDev) const SizedBox(height: 12),
+            if (!_isDev) const SizedBox(height: 8),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildChatBubble(_ChatMessage msg, int index) {
-    final isStreaming = msg.isStreaming;
-    return Align(
-      alignment: msg.isAI ? Alignment.centerLeft : Alignment.centerRight,
-      child:
-          Padding(
-                padding: const EdgeInsets.only(bottom: 12),
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: msg.isAI
-                        ? (isStreaming
-                              ? AppColors.surfaceContainerLow
-                              : AppColors.surfaceContainer)
-                        : AppColors.surfaceContainerHigh,
-                    borderRadius: BorderRadius.only(
-                      topLeft: const Radius.circular(20),
-                      topRight: const Radius.circular(20),
-                      bottomLeft: Radius.circular(msg.isAI ? 4 : 20),
-                      bottomRight: Radius.circular(msg.isAI ? 20 : 4),
-                    ),
-                    border: Border.all(
-                      color: msg.isAI
-                          ? (isStreaming
-                                ? AppColors.positive.withValues(alpha: 0.3)
-                                : const Color(0x14FFFFFF))
-                          : const Color(0x24FFFFFF),
-                      width: isStreaming ? 1.5 : 1,
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: isStreaming
-                            ? AppColors.positive.withValues(alpha: 0.1)
-                            : const Color(0x40000000),
-                        offset: const Offset(0, 3),
-                        blurRadius: isStreaming ? 12 : 8,
-                      ),
-                    ],
+  Widget _buildHeader() {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 12),
+      decoration: const BoxDecoration(
+        border: Border(bottom: BorderSide(color: Color(0x0CFFFFFF), width: 1)),
+      ),
+      child: Row(
+        children: [
+          if (Navigator.of(context).canPop()) ...[
+            GestureDetector(
+              onTap: () => Navigator.of(context).pop(),
+              child: const NeumorphicContainer(
+                width: 36,
+                height: 36,
+                borderRadius: 10,
+                padding: EdgeInsets.zero,
+                child: Center(
+                  child: Icon(
+                    Icons.arrow_back_ios_new_rounded,
+                    size: 14,
+                    color: AppColors.textPrimary,
                   ),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 12,
-                  ),
-                  child: ConstrainedBox(
-                    constraints: BoxConstraints(
-                      maxWidth: MediaQuery.of(context).size.width * 0.75,
-                    ),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        if (msg.isAI) ...[
-                          Container(
-                            width: 24,
-                            height: 24,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              color: isStreaming
-                                  ? AppColors.positive.withValues(alpha: 0.2)
-                                  : AppColors.surfaceContainerHigh,
-                            ),
-                            child: Center(
-                              child: isStreaming
-                                  ? const SizedBox(
-                                      width: 12,
-                                      height: 12,
-                                      child: CircularProgressIndicator(
-                                        strokeWidth: 2,
-                                        color: AppColors.positive,
-                                      ),
-                                    )
-                                  : const Icon(
-                                      Icons.auto_awesome_rounded,
-                                      color: AppColors.positive,
-                                      size: 14,
-                                    ),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                        ],
-                        Flexible(
-                          child: Text(
-                            msg.text,
-                            style: TextStyle(
-                              color: AppColors.textPrimary,
-                              fontSize: 13.5,
-                              height: 1.5,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              )
-              .animate()
-              .fadeIn(delay: (index * 20).ms, duration: 200.ms)
-              .slideY(begin: 0.1),
-    );
-  }
-
-  Widget _buildShortcutChips() {
-    return SizedBox(
-      height: 36,
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 20),
-        itemCount: _shortcuts.length,
-        separatorBuilder: (_, _) => const SizedBox(width: 8),
-        itemBuilder: (context, i) {
-          final (label, message) = _shortcuts[i];
-          return GestureDetector(
-            onTap: _isStreaming ? null : () => _sendMessage(message),
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 150),
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-              decoration: BoxDecoration(
-                color: _isStreaming
-                    ? AppColors.surfaceContainerLow
-                    : AppColors.surfaceContainer,
-                borderRadius: BorderRadius.circular(999),
-                border: Border.all(
-                  color: _isStreaming
-                      ? const Color(0x0AFFFFFF)
-                      : const Color(0x1AFFFFFF),
-                ),
-                boxShadow: _isStreaming
-                    ? null
-                    : const [
-                        BoxShadow(
-                          color: Color(0x66000000),
-                          offset: Offset(2, 3),
-                          blurRadius: 6,
-                        ),
-                        BoxShadow(
-                          color: Color(0x05FFFFFF),
-                          offset: Offset(-1, -1),
-                          blurRadius: 4,
-                        ),
-                      ],
-              ),
-              child: Text(
-                label,
-                style: TextStyle(
-                  color: _isStreaming
-                      ? AppColors.textMuted
-                      : AppColors.textSecondary,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  letterSpacing: 0.2,
                 ),
               ),
             ),
+            const SizedBox(width: 12),
+          ],
+          AnimatedBuilder(
+            animation: _pulseController,
+            builder: (context, child) {
+              final glow = 0.3 + 0.2 * _pulseController.value;
+              return Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: AppColors.surfaceContainerHigh,
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppColors.positive.withValues(alpha: glow),
+                      blurRadius: 14,
+                      spreadRadius: 1,
+                    ),
+                  ],
+                ),
+                child: const Center(
+                  child: Icon(
+                    Icons.auto_awesome_rounded,
+                    color: AppColors.positive,
+                    size: 20,
+                  ),
+                ),
+              );
+            },
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Text(
+                      'Noir AI',
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: -0.3,
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    _buildStatusBadge(),
+                  ],
+                ),
+                Text(
+                  _isDev && _isOllamaHealthy
+                      ? 'Ollama aktif - mode lanjut'
+                      : 'Analisis lokal - tanpa internet',
+                  style: Theme.of(context).textTheme.bodySmall
+                      ?.copyWith(fontSize: 11, color: AppColors.textMuted),
+                ),
+              ],
+            ),
+          ),
+          if (_messages.isNotEmpty)
+            GestureDetector(
+              onTap: () {
+                HapticFeedback.mediumImpact();
+                setState(() {
+                  _messages.clear();
+                  _isStreaming = false;
+                });
+                _initChat();
+              },
+              child: const NeumorphicContainer(
+                width: 36,
+                height: 36,
+                borderRadius: 10,
+                padding: EdgeInsets.zero,
+                child: Center(
+                  child: Icon(
+                    Icons.refresh_rounded,
+                    size: 16,
+                    color: AppColors.textMuted,
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ).animate().fadeIn(duration: 300.ms),
+    );
+  }
+
+  Widget _buildStatusBadge() {
+    final online = _isDev && _isOllamaHealthy;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+      decoration: BoxDecoration(
+        color: online
+            ? AppColors.positive.withValues(alpha: 0.12)
+            : AppColors.surfaceContainerHigh,
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(
+          color: online
+              ? AppColors.positive.withValues(alpha: 0.3)
+              : const Color(0x10FFFFFF),
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 5,
+            height: 5,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: online ? AppColors.positive : AppColors.textMuted,
+            ),
+          ),
+          const SizedBox(width: 4),
+          Text(
+            online ? 'ONLINE' : 'LOCAL',
+            style: TextStyle(
+              color: online ? AppColors.positive : AppColors.textMuted,
+              fontSize: 9,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 0.8,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEmptyState() {
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 64,
+            height: 64,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: AppColors.surfaceContainerHigh,
+              boxShadow: [
+                BoxShadow(
+                  color: AppColors.positive.withValues(alpha: 0.15),
+                  blurRadius: 20,
+                  spreadRadius: 2,
+                ),
+              ],
+            ),
+            child: const Icon(
+              Icons.auto_awesome_rounded,
+              color: AppColors.positive,
+              size: 28,
+            ),
+          ),
+          const SizedBox(height: 16),
+          Text(
+            'Noir AI',
+            style: Theme.of(context).textTheme.titleLarge
+                ?.copyWith(fontWeight: FontWeight.w700),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'Asisten keuangan lokal kamu',
+            style: Theme.of(context).textTheme.bodySmall
+                ?.copyWith(color: AppColors.textMuted, fontSize: 12),
+          ),
+        ],
+      ).animate().fadeIn(duration: 400.ms).scale(begin: const Offset(0.9, 0.9)),
+    );
+  }
+
+  Widget _buildQuickChips() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(
+          height: 42,
+          child: ListView(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            children: List.generate(_quickChips.length, (idx) {
+              final (label, type) = _quickChips[idx];
+              return GestureDetector(
+                onTap: _isStreaming ? null : () => _runAnalysis(type, label),
+                child: AnimatedOpacity(
+                  duration: const Duration(milliseconds: 200),
+                  opacity: _isStreaming ? 0.4 : 1.0,
+                  child: Container(
+                    margin: const EdgeInsets.only(right: 8),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 10,
+                    ),
+                    decoration: BoxDecoration(
+                      color: AppColors.surfaceContainerHigh,
+                      borderRadius: BorderRadius.circular(999),
+                      border: Border.all(color: const Color(0x12FFFFFF)),
+                      boxShadow: const [
+                        BoxShadow(
+                          color: AppColors.shadowDark,
+                          offset: Offset(2, 2),
+                          blurRadius: 6,
+                        ),
+                      ],
+                    ),
+                    child: Text(
+                      label,
+                      style: const TextStyle(
+                        color: AppColors.textSecondary,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            }),
+          ),
+        ),
+        const SizedBox(height: 4),
+      ],
+    ).animate().fadeIn(delay: 100.ms, duration: 250.ms).slideY(begin: 0.05);
+  }
+
+  Widget _buildInput() {
+    if (!_isDev) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          Expanded(
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              decoration: BoxDecoration(
+                color: AppColors.surfaceContainer,
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(
+                  color: _hasText
+                      ? AppColors.positive.withValues(alpha: 0.35)
+                      : const Color(0x10FFFFFF),
+                  width: 1,
+                ),
+                boxShadow: const [
+                  BoxShadow(
+                    color: AppColors.shadowDark,
+                    offset: Offset(0, 4),
+                    blurRadius: 12,
+                  ),
+                ],
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  const Icon(
+                    Icons.auto_awesome_rounded,
+                    color: AppColors.textMuted,
+                    size: 16,
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: TextField(
+                      controller: _controller,
+                      focusNode: _inputFocusNode,
+                      enabled: !_isStreaming,
+                      minLines: 1,
+                      maxLines: 4,
+                      keyboardType: TextInputType.multiline,
+                      textInputAction: TextInputAction.send,
+                      style: const TextStyle(
+                        color: AppColors.textPrimary,
+                        fontSize: 13.5,
+                        height: 1.4,
+                      ),
+                      decoration: InputDecoration(
+                        hintText: _isStreaming
+                            ? 'Memproses...'
+                            : 'Tanya Noir tentang keuanganmu...',
+                        hintStyle: const TextStyle(
+                          color: AppColors.textMuted,
+                          fontSize: 13.5,
+                        ),
+                        border: InputBorder.none,
+                        isDense: true,
+                        contentPadding: const EdgeInsets.symmetric(vertical: 8),
+                      ),
+                      onSubmitted: _isStreaming ? null : (v) => _sendMessage(v),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(width: 10),
+          GestureDetector(
+            onTap: (_hasText && !_isStreaming)
+                ? () => _sendMessage(_controller.text)
+                : null,
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: (_hasText && !_isStreaming)
+                    ? AppColors.positive
+                    : AppColors.surfaceContainerHigh,
+                boxShadow: (_hasText && !_isStreaming)
+                    ? [
+                        BoxShadow(
+                          color: AppColors.positive.withValues(alpha: 0.35),
+                          blurRadius: 12,
+                          offset: const Offset(0, 4),
+                        ),
+                      ]
+                    : null,
+              ),
+              child: Center(
+                child: _isStreaming
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 1.8,
+                          color: AppColors.positive,
+                        ),
+                      )
+                    : Icon(
+                        Icons.arrow_upward_rounded,
+                        color: (_hasText && !_isStreaming)
+                            ? Colors.black
+                            : AppColors.textMuted,
+                        size: 20,
+                      ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBubble(_ChatMessage msg, int index) {
+    if (!msg.isAI) {
+      return Align(
+        alignment: Alignment.centerRight,
+        child:
+            Container(
+                  margin: const EdgeInsets.only(bottom: 12, left: 48),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 11,
+                  ),
+                  decoration: BoxDecoration(
+                    color: AppColors.surfaceContainerHigh,
+                    borderRadius: const BorderRadius.only(
+                      topLeft: Radius.circular(18),
+                      topRight: Radius.circular(18),
+                      bottomLeft: Radius.circular(18),
+                      bottomRight: Radius.circular(4),
+                    ),
+                    border: Border.all(color: const Color(0x14FFFFFF)),
+                  ),
+                  child: Text(
+                    msg.text,
+                    style: const TextStyle(
+                      color: AppColors.textPrimary,
+                      fontSize: 13.5,
+                      height: 1.45,
+                    ),
+                  ),
+                )
+                .animate()
+                .fadeIn(delay: (index * 20).ms, duration: 200.ms)
+                .slideX(begin: 0.05),
+      );
+    }
+    return Align(
+      alignment: Alignment.centerLeft,
+      child:
+          Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.only(left: 4, bottom: 6),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          width: 22,
+                          height: 22,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: AppColors.positive.withValues(alpha: 0.12),
+                          ),
+                          child: const Icon(
+                            Icons.auto_awesome_rounded,
+                            color: AppColors.positive,
+                            size: 12,
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        const Text(
+                          'Noir',
+                          style: TextStyle(
+                            color: AppColors.textMuted,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            letterSpacing: 0.3,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Container(
+                    margin: const EdgeInsets.only(bottom: 16, right: 48),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 13,
+                    ),
+                    decoration: BoxDecoration(
+                      color: msg.isStreaming
+                          ? AppColors.surfaceContainerLow
+                          : AppColors.surfaceContainer,
+                      borderRadius: const BorderRadius.only(
+                        topLeft: Radius.circular(4),
+                        topRight: Radius.circular(18),
+                        bottomLeft: Radius.circular(18),
+                        bottomRight: Radius.circular(18),
+                      ),
+                      border: Border.all(
+                        color: msg.isStreaming
+                            ? AppColors.positive.withValues(alpha: 0.18)
+                            : const Color(0x0AFFFFFF),
+                      ),
+                    ),
+                    child: msg.isStreaming && msg.text.isEmpty
+                        ? const _TypingDots()
+                        : _buildFormattedText(msg.text),
+                  ),
+                ],
+              )
+              .animate()
+              .fadeIn(delay: (index * 20).ms, duration: 200.ms)
+              .slideX(begin: -0.04),
+    );
+  }
+
+  Widget _buildFormattedText(String text) {
+    final lines = text.split('\n');
+    final widgets = <Widget>[];
+    for (int i = 0; i < lines.length; i++) {
+      final line = lines[i];
+      if (line.isEmpty) {
+        widgets.add(const SizedBox(height: 6));
+      } else if (line.startsWith('- ') || line.startsWith('• ')) {
+        widgets.add(
+          Padding(
+            padding: const EdgeInsets.only(bottom: 3),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Padding(
+                  padding: EdgeInsets.only(top: 7),
+                  child: CircleAvatar(
+                    radius: 2.5,
+                    backgroundColor: AppColors.positive,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(child: _buildRichLine(line.substring(2))),
+              ],
+            ),
+          ),
+        );
+      } else if (RegExp(r'^\d+\.').hasMatch(line)) {
+        final match = RegExp(r'^(\d+)\.\s*(.*)').firstMatch(line);
+        if (match != null) {
+          widgets.add(
+            Padding(
+              padding: const EdgeInsets.only(bottom: 3),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '${match.group(1)}.',
+                    style: const TextStyle(
+                      color: AppColors.positive,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(child: _buildRichLine(match.group(2) ?? '')),
+                ],
+              ),
+            ),
           );
-        },
+        }
+      } else if (line.isNotEmpty &&
+          !line.contains(':') &&
+          line.length < 40 &&
+          (i == 0 || lines[i - 1].isEmpty)) {
+        widgets.add(
+          Padding(
+            padding: EdgeInsets.only(top: i > 0 ? 8 : 0, bottom: 4),
+            child: Text(
+              line.replaceAll(RegExp(r'\*\*(.*?)\*\*'), r'$1'),
+              style: const TextStyle(
+                color: AppColors.textPrimary,
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 0.1,
+              ),
+            ),
+          ),
+        );
+      } else {
+        widgets.add(
+          Padding(
+            padding: const EdgeInsets.only(bottom: 2),
+            child: _buildRichLine(line),
+          ),
+        );
+      }
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: widgets,
+    );
+  }
+
+  Widget _buildRichLine(String text) {
+    final parts = <TextSpan>[];
+    final regex = RegExp(r'\*\*(.*?)\*\*');
+    int last = 0;
+    for (final match in regex.allMatches(text)) {
+      if (match.start > last) {
+        parts.add(
+          TextSpan(
+            text: text.substring(last, match.start),
+            style: const TextStyle(
+              color: AppColors.textPrimary,
+              fontSize: 13.5,
+              height: 1.5,
+            ),
+          ),
+        );
+      }
+      parts.add(
+        TextSpan(
+          text: match.group(1),
+          style: const TextStyle(
+            color: AppColors.textPrimary,
+            fontSize: 13.5,
+            fontWeight: FontWeight.w700,
+            height: 1.5,
+          ),
+        ),
+      );
+      last = match.end;
+    }
+    if (last < text.length) {
+      parts.add(
+        TextSpan(
+          text: text.substring(last),
+          style: const TextStyle(
+            color: AppColors.textPrimary,
+            fontSize: 13.5,
+            height: 1.5,
+          ),
+        ),
+      );
+    }
+    return RichText(
+      text: TextSpan(
+        children: parts.isEmpty
+            ? [
+                TextSpan(
+                  text: text,
+                  style: const TextStyle(
+                    color: AppColors.textPrimary,
+                    fontSize: 13.5,
+                    height: 1.5,
+                  ),
+                ),
+              ]
+            : parts,
       ),
     );
   }
@@ -664,59 +867,63 @@ class _ChatMessage {
   final String text;
   final bool isAI;
   final bool isStreaming;
+  final bool isWelcome;
   const _ChatMessage({
     required this.text,
     required this.isAI,
     this.isStreaming = false,
+    this.isWelcome = false,
   });
 }
 
-class _TypingIndicator extends StatefulWidget {
+class _TypingDots extends StatefulWidget {
+  const _TypingDots();
   @override
-  State<_TypingIndicator> createState() => _TypingIndicatorState();
+  State<_TypingDots> createState() => _TypingDotsState();
 }
 
-class _TypingIndicatorState extends State<_TypingIndicator>
+class _TypingDotsState extends State<_TypingDots>
     with SingleTickerProviderStateMixin {
-  late AnimationController _controller;
-
+  late AnimationController _ctrl;
   @override
   void initState() {
     super.initState();
-    _controller = AnimationController(
-      duration: const Duration(milliseconds: 1200),
+    _ctrl = AnimationController(
       vsync: this,
+      duration: const Duration(milliseconds: 1400),
     )..repeat();
   }
 
   @override
   void dispose() {
-    _controller.dispose();
+    _ctrl.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     return AnimatedBuilder(
-      animation: _controller,
-      builder: (context, child) {
+      animation: _ctrl,
+      builder: (context, _) {
         return Row(
           mainAxisSize: MainAxisSize.min,
-          children: List.generate(3, (index) {
-            final delay = index * 0.2;
-            final value = ((_controller.value - delay) % 1.0).clamp(0.0, 1.0);
-            final scale = 0.5 + 0.5 * (1 - (value - 0.5).abs() * 2);
+          children: List.generate(3, (i) {
+            final delay = i * 0.22;
+            final raw = (_ctrl.value - delay) % 1.0;
+            final v = raw.clamp(0.0, 1.0);
+            final scale =
+                0.55 + 0.45 * (1.0 - (v - 0.5).abs() * 2.0).clamp(0.0, 1.0);
             return Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 2),
+              padding: const EdgeInsets.symmetric(horizontal: 2.5),
               child: Transform.scale(
                 scale: scale,
                 child: Container(
-                  width: 6,
-                  height: 6,
+                  width: 7,
+                  height: 7,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     color: AppColors.positive.withValues(
-                      alpha: 0.5 + 0.5 * scale,
+                      alpha: 0.4 + 0.5 * scale,
                     ),
                   ),
                 ),

@@ -41,6 +41,7 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
   }
 
   Future<void> _logout(BuildContext context) async {
+    final t = AppTranslations.of(ref.read(appSettingsProvider).languageCode);
     final shouldLogout = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -49,17 +50,17 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
           borderRadius: BorderRadius.circular(20),
           side: const BorderSide(color: Color(0x1AFFFFFF), width: 1),
         ),
-        title: const Row(
+        title: Row(
           children: [
-            Icon(
+            const Icon(
               Icons.logout_rounded,
               color: AppColors.negativeLight,
               size: 22,
             ),
-            SizedBox(width: 10),
+            const SizedBox(width: 10),
             Text(
-              'Keluar Akun?',
-              style: TextStyle(
+              t.logoutConfirm,
+              style: const TextStyle(
                 color: AppColors.textPrimary,
                 fontSize: 18,
                 fontWeight: FontWeight.w700,
@@ -67,16 +68,16 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
             ),
           ],
         ),
-        content: const Text(
-          'Apakah Anda yakin ingin keluar dari sesi akun ini?',
-          style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
+        content: Text(
+          t.logoutMessage,
+          style: const TextStyle(color: AppColors.textSecondary, fontSize: 13),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text(
-              'Batal',
-              style: TextStyle(color: AppColors.textMuted),
+            child: Text(
+              t.cancel,
+              style: const TextStyle(color: AppColors.textMuted),
             ),
           ),
           ElevatedButton(
@@ -88,7 +89,7 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
               ),
             ),
             onPressed: () => Navigator.of(ctx).pop(true),
-            child: const Text('Keluar'),
+            child: Text(t.logout),
           ),
         ],
       ),
@@ -192,9 +193,9 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
                           children: [
                             Row(
                               children: [
-                                const Text(
-                                  'My Wallet',
-                                  style: TextStyle(
+                                Text(
+                                  t.myWallet,
+                                  style: const TextStyle(
                                     color: AppColors.textPrimary,
                                     fontSize: 24,
                                     fontWeight: FontWeight.w800,
@@ -228,7 +229,7 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
                             ),
                             const SizedBox(height: 2),
                             Text(
-                              t.wallet,
+                              t.manageWallet,
                               style: const TextStyle(
                                 color: AppColors.textMuted,
                                 fontSize: 12,
@@ -336,6 +337,7 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
                                   cardBalance: cardBalance,
                                   cashBalance: cashBalance,
                                   fmt: fmt,
+                                  t: t,
                                 ),
                                 // Card 2: Cash / Dompet Fisik
                                 _buildCashCard(
@@ -345,6 +347,7 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
                                   cardBalance: cardBalance,
                                   cashBalance: cashBalance,
                                   fmt: fmt,
+                                  t: t,
                                 ),
                               ],
                             ),
@@ -384,8 +387,8 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               _buildFilterPill(t.allLabel, 'all'),
-                              _buildFilterPill('💳 Kartu', 'card'),
-                              _buildFilterPill('💵 Tunai', 'cash'),
+                              _buildFilterPill('💳 ${t.filterCard}', 'card'),
+                              _buildFilterPill('💵 ${t.filterCash}', 'cash'),
                             ],
                           ),
                         ),
@@ -419,7 +422,7 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
                           ),
                           const SizedBox(height: 12),
                           Text(
-                            t.noTransactions,
+                            t.noWalletTx,
                             style: const TextStyle(
                               color: AppColors.textSecondary,
                               fontSize: 13,
@@ -427,10 +430,10 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
                             ),
                           ),
                           const SizedBox(height: 4),
-                          const Text(
-                            'Gunakan tombol di atas untuk mencatat pengeluaran atau pemasukan.',
+                          Text(
+                            t.useButtonsAbove,
                             textAlign: TextAlign.center,
-                            style: TextStyle(
+                            style: const TextStyle(
                               color: AppColors.textMuted,
                               fontSize: 11,
                             ),
@@ -474,21 +477,21 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
                                 ),
                               ),
                               const SizedBox(width: 12),
-                              const Expanded(
+                              Expanded(
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     Text(
-                                      'Keamanan & Sinkronisasi',
-                                      style: TextStyle(
+                                      t.securityAccount,
+                                      style: const TextStyle(
                                         color: AppColors.textPrimary,
                                         fontSize: 13,
                                         fontWeight: FontWeight.w700,
                                       ),
                                     ),
                                     Text(
-                                      'Terenkripsi end-to-end dengan Supabase',
-                                      style: TextStyle(
+                                      t.encryptionNote,
+                                      style: const TextStyle(
                                         color: AppColors.textMuted,
                                         fontSize: 11,
                                       ),
@@ -636,7 +639,7 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
                       ),
                       const SizedBox(width: 4),
                       Text(
-                        _isBalanceVisible ? 'Sembunyikan' : 'Tampilkan',
+                        _isBalanceVisible ? t.hide : t.show,
                         style: const TextStyle(
                           color: AppColors.textSecondary,
                           fontSize: 10,
@@ -771,6 +774,7 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
     required double cardBalance,
     required double cashBalance,
     required CurrencyFormatter fmt,
+    required AppTranslations t,
   }) {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
@@ -881,9 +885,9 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
                       borderRadius: BorderRadius.circular(6),
                       border: Border.all(color: const Color(0x22FFFFFF)),
                     ),
-                    child: const Text(
-                      'DEBIT PLATINUM',
-                      style: TextStyle(
+                    child: Text(
+                      t.debitPlatinum,
+                      style: const TextStyle(
                         color: Colors.white,
                         fontSize: 9,
                         fontWeight: FontWeight.w800,
@@ -898,9 +902,9 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
-                    'Saldo Kartu',
-                    style: TextStyle(
+                  Text(
+                    t.cardBalanceLabel,
+                    style: const TextStyle(
                       color: Color(0x99FFFFFF),
                       fontSize: 11,
                       fontWeight: FontWeight.w500,
@@ -968,10 +972,10 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-                  const Column(
+                  Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
+                      const Text(
                         '••••  ••••  ••••  5824',
                         style: TextStyle(
                           color: Color(0xCCFFFFFF),
@@ -980,10 +984,10 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
                           fontFamily: 'monospace',
                         ),
                       ),
-                      SizedBox(height: 2),
+                      const SizedBox(height: 2),
                       Text(
-                        'DOMPET KARTU UTAMA',
-                        style: TextStyle(
+                        t.cardHolderName,
+                        style: const TextStyle(
                           color: Color(0x77FFFFFF),
                           fontSize: 9,
                           fontWeight: FontWeight.w700,
@@ -1022,6 +1026,7 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
     required double cardBalance,
     required double cashBalance,
     required CurrencyFormatter fmt,
+    required AppTranslations t,
   }) {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
@@ -1095,9 +1100,9 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
                       borderRadius: BorderRadius.circular(6),
                       border: Border.all(color: const Color(0x22FFFFFF)),
                     ),
-                    child: const Text(
-                      'DOMPET FISIK (CASH)',
-                      style: TextStyle(
+                    child: Text(
+                      t.cashWalletLabel,
+                      style: const TextStyle(
                         color: Colors.white,
                         fontSize: 9,
                         fontWeight: FontWeight.w800,
@@ -1112,9 +1117,9 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
-                    'Saldo Uang Tunai',
-                    style: TextStyle(
+                  Text(
+                    t.cashBalanceLabel,
+                    style: const TextStyle(
                       color: Color(0x99FFFFFF),
                       fontSize: 11,
                       fontWeight: FontWeight.w500,
@@ -1182,11 +1187,11 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-                  const Column(
+                  Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'KAS FISIK & HARIAN',
+                        t.casualDailyLabel,
                         style: TextStyle(
                           color: Color(0xCCFFFFFF),
                           fontSize: 11,
@@ -1194,10 +1199,13 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
                           letterSpacing: 1,
                         ),
                       ),
-                      SizedBox(height: 2),
+                      const SizedBox(height: 2),
                       Text(
-                        'Siap digunakan langsung',
-                        style: TextStyle(color: Color(0x77FFFFFF), fontSize: 9),
+                        t.cashReady,
+                        style: const TextStyle(
+                          color: Color(0x77FFFFFF),
+                          fontSize: 9,
+                        ),
                       ),
                     ],
                   ),

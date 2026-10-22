@@ -63,7 +63,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
               child: Text(
-                'Transactions',
+                t.transactionsTitle,
                 style: Theme.of(context).textTheme.headlineLarge,
               ).animate().fadeIn(duration: 300.ms),
             ),
@@ -170,7 +170,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                           ),
                           const SizedBox(height: 12),
                           Text(
-                            t.noTransactions,
+                            t.noTxFound,
                             style: Theme.of(context).textTheme.bodyMedium,
                           ),
                         ],
@@ -340,6 +340,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
   }
 
   Future<bool?> _showDeleteDialog(BuildContext context) {
+    final t = AppTranslations.of(ref.read(appSettingsProvider).languageCode);
     return showDialog<bool>(
       context: context,
       builder: (_) => Dialog(
@@ -356,18 +357,21 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                 size: 40,
               ),
               const SizedBox(height: 16),
-              const Text(
-                'Hapus Transaksi?',
-                style: TextStyle(
+              Text(
+                t.deleteTransaction,
+                style: const TextStyle(
                   color: AppColors.textPrimary,
                   fontWeight: FontWeight.w600,
                   fontSize: 16,
                 ),
               ),
               const SizedBox(height: 8),
-              const Text(
-                'Tindakan ini tidak bisa dibatalkan.',
-                style: TextStyle(color: AppColors.textMuted, fontSize: 13),
+              Text(
+                t.confirmDelete,
+                style: const TextStyle(
+                  color: AppColors.textMuted,
+                  fontSize: 13,
+                ),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 24),
@@ -378,10 +382,12 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                       onTap: () => Navigator.pop(context, false),
                       padding: const EdgeInsets.symmetric(vertical: 12),
                       borderRadius: 12,
-                      child: const Center(
+                      child: Center(
                         child: Text(
-                          'Batal',
-                          style: TextStyle(color: AppColors.textSecondary),
+                          t.cancel,
+                          style: const TextStyle(
+                            color: AppColors.textSecondary,
+                          ),
                         ),
                       ),
                     ),
@@ -393,10 +399,10 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                       padding: const EdgeInsets.symmetric(vertical: 12),
                       borderRadius: 12,
                       backgroundColor: AppColors.surfaceBright,
-                      child: const Center(
+                      child: Center(
                         child: Text(
-                          'Hapus',
-                          style: TextStyle(
+                          t.delete,
+                          style: const TextStyle(
                             color: AppColors.textPrimary,
                             fontWeight: FontWeight.w600,
                           ),

@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:watch_your_money/core/settings/settings_provider.dart';
+import 'package:watch_your_money/core/i18n/app_translations.dart';
 import 'package:watch_your_money/core/theme/app_colors.dart';
 import 'package:watch_your_money/core/theme/neumorphic_container.dart';
 import 'package:watch_your_money/core/updates/update_helper.dart';
@@ -30,6 +31,7 @@ class ProfileScreen extends ConsumerStatefulWidget {
 
 class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   Future<void> _logout(BuildContext context) async {
+    final t = AppTranslations.of(ref.read(appSettingsProvider).languageCode);
     final shouldLogout = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -38,17 +40,17 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           borderRadius: BorderRadius.circular(20),
           side: const BorderSide(color: Color(0x1AFFFFFF), width: 1),
         ),
-        title: const Row(
+        title: Row(
           children: [
-            Icon(
+            const Icon(
               Icons.logout_rounded,
               color: AppColors.negativeLight,
               size: 22,
             ),
-            SizedBox(width: 10),
+            const SizedBox(width: 10),
             Text(
-              'Keluar Akun?',
-              style: TextStyle(
+              t.logoutConfirm,
+              style: const TextStyle(
                 color: AppColors.textPrimary,
                 fontSize: 18,
                 fontWeight: FontWeight.w700,
@@ -56,16 +58,16 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             ),
           ],
         ),
-        content: const Text(
-          'Apakah Anda yakin ingin keluar dari sesi akun ini?',
-          style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
+        content: Text(
+          t.logoutMessage,
+          style: const TextStyle(color: AppColors.textSecondary, fontSize: 13),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text(
-              'Batal',
-              style: TextStyle(color: AppColors.textMuted),
+            child: Text(
+              t.cancel,
+              style: const TextStyle(color: AppColors.textMuted),
             ),
           ),
           ElevatedButton(
@@ -77,7 +79,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               ),
             ),
             onPressed: () => Navigator.of(ctx).pop(true),
-            child: const Text('Keluar'),
+            child: Text(t.logout),
           ),
         ],
       ),
@@ -128,6 +130,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     final settingsState = ref.watch(settingsProvider);
     final packageInfoAsync = ref.watch(packageInfoProvider);
     final fmt = CurrencyFormatter.from(settings);
+    final t = AppTranslations.of(settings.languageCode);
 
     return Scaffold(
       backgroundColor: AppColors.surfaceCanvas,
@@ -156,9 +159,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                         ),
                       ),
                     ),
-                    const Text(
-                      'Profil Akun',
-                      style: TextStyle(
+                    Text(
+                      t.profileTitle,
+                      style: const TextStyle(
                         color: AppColors.textPrimary,
                         fontSize: 18,
                         fontWeight: FontWeight.w800,
@@ -175,10 +178,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                         borderRadius: BorderRadius.circular(999),
                         border: Border.all(color: const Color(0x3310B981)),
                       ),
-                      child: const Row(
+                      child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Text(
+                          const Text(
                             '● ',
                             style: TextStyle(
                               color: AppColors.positive,
@@ -186,8 +189,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                             ),
                           ),
                           Text(
-                            'SECURE',
-                            style: TextStyle(
+                            t.secure,
+                            style: const TextStyle(
                               color: AppColors.positive,
                               fontSize: 9,
                               fontWeight: FontWeight.w700,
@@ -251,9 +254,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
                       // User Email / Name
                       Text(
-                        isGuest
-                            ? 'Pengguna Tamu (Offline)'
-                            : (user.email ?? 'Pengguna'),
+                        isGuest ? t.guestUser : (user.email ?? 'Pengguna'),
                         style: const TextStyle(
                           color: AppColors.textPrimary,
                           fontSize: 17,
@@ -335,9 +336,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                             ),
                             const SizedBox(width: 6),
                             Text(
-                              isGuest
-                                  ? 'MODE TAMU (LOKAL)'
-                                  : 'CLOUD VAULT AKTIF',
+                              isGuest ? t.guestMode : t.cloudActive,
                               style: TextStyle(
                                 color: isGuest
                                     ? const Color(0xFFFBBF24)
@@ -378,7 +377,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                           children: [
                             Expanded(
                               child: _buildMiniStat(
-                                title: 'Transaksi',
+                                title: t.transactionsTitle,
                                 value: '$txCount',
                                 color: const Color(0xFF818CF8),
                                 icon: Icons.receipt_long_rounded,
@@ -387,7 +386,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                             const SizedBox(width: 10),
                             Expanded(
                               child: _buildMiniStat(
-                                title: 'Pemasukan',
+                                title: t.income,
                                 value: fmt.compact(income),
                                 color: const Color(0xFF34D399),
                                 icon: Icons.south_west_rounded,
@@ -396,7 +395,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                             const SizedBox(width: 10),
                             Expanded(
                               child: _buildMiniStat(
-                                title: 'Pengeluaran',
+                                title: t.expense,
                                 value: fmt.compact(expense),
                                 color: const Color(0xFFFB7185),
                                 icon: Icons.north_east_rounded,
@@ -420,10 +419,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Padding(
-                      padding: EdgeInsets.only(left: 4, bottom: 8),
+                    Padding(
+                      padding: const EdgeInsets.only(left: 4, bottom: 8),
                       child: Text(
-                        'INFORMASI AKUN',
+                        t.accountInfo.toUpperCase(),
                         style: TextStyle(
                           color: AppColors.textMuted,
                           fontSize: 11,
@@ -439,12 +438,12 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                           _buildSettingItem(
                             icon: Icons.email_outlined,
                             iconColor: const Color(0xFF818CF8),
-                            title: 'Email Terdaftar',
-                            subtitle: user?.email ?? 'Tidak terhubung email',
+                            title: t.registeredEmail,
+                            subtitle: user?.email ?? t.notConnectedEmail,
                             trailing: isGuest
-                                ? const Text(
-                                    'Offline',
-                                    style: TextStyle(
+                                ? Text(
+                                    t.offlineLabel,
+                                    style: const TextStyle(
                                       color: AppColors.textMuted,
                                       fontSize: 11,
                                     ),
@@ -459,7 +458,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                           _buildSettingItem(
                             icon: Icons.calendar_today_outlined,
                             iconColor: const Color(0xFF38BDF8),
-                            title: 'Bergabung Sejak',
+                            title: t.joinedSince,
                             subtitle: user?.createdAt != null
                                 ? DateFormat('d MMMM yyyy')
                                       .format(DateTime.parse(user!.createdAt))
@@ -469,8 +468,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                           _buildSettingItem(
                             icon: Icons.security_rounded,
                             iconColor: const Color(0xFF34D399),
-                            title: 'Protokol Keamanan',
-                            subtitle: 'Enkripsi SSL & Supabase RLS Protected',
+                            title: t.security,
+                            subtitle: t.securityValue,
                           ),
                         ],
                       ),
@@ -489,10 +488,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Padding(
-                      padding: EdgeInsets.only(left: 4, bottom: 8),
+                    Padding(
+                      padding: const EdgeInsets.only(left: 4, bottom: 8),
                       child: Text(
-                        'PENGATURAN & PREFERENSI',
+                        t.preferences.toUpperCase(),
                         style: TextStyle(
                           color: AppColors.textMuted,
                           fontSize: 11,
@@ -540,8 +539,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                               iconColor: const Color(0xFFA78BFA),
                               title: 'Local AI (Ollama)',
                               subtitle: settingsState.useOllama
-                                  ? 'Aktif — ${settingsState.ollamaBaseUrl}'
-                                  : 'Nonaktif — gunakan engine offline',
+                                  ? '${t.ollamaActiveLabel} — ${settingsState.ollamaBaseUrl}'
+                                  : t.ollamaInactive,
                               trailing: Switch(
                                 value: settingsState.useOllama,
                                 onChanged: (v) => ref
@@ -562,7 +561,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                           _buildSettingItem(
                             icon: Icons.system_update_outlined,
                             iconColor: const Color(0xFF38BDF8),
-                            title: 'Periksa Pembaruan',
+                            title: t.checkUpdate,
                             subtitle: packageInfoAsync.maybeWhen(
                               data: (info) => 'watchh v${info.version}',
                               orElse: () => 'watchh',
@@ -581,15 +580,15 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                           _buildSettingItem(
                             icon: Icons.dark_mode_outlined,
                             iconColor: const Color(0xFFA78BFA),
-                            title: 'Tema Tampilan',
-                            subtitle: 'Dark Onyx Neumorphism (Aktif)',
+                            title: t.theme,
+                            subtitle: t.themeValue,
                           ),
                           const Divider(color: Color(0x12FFFFFF), height: 1),
                           _buildSettingItem(
                             icon: Icons.auto_awesome_rounded,
                             iconColor: const Color(0xFF818CF8),
-                            title: 'AI Financial Assistant',
-                            subtitle: 'Tanya analisis keuangan & tips hemat',
+                            title: t.aiAssistant,
+                            subtitle: t.aiSubtitle,
                             onTap: () => Navigator.push(
                               context,
                               MaterialPageRoute(
@@ -606,8 +605,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                           _buildSettingItem(
                             icon: Icons.feedback_outlined,
                             iconColor: const Color(0xFF34D399),
-                            title: 'Saran & Kritik',
-                            subtitle: 'Bantu kami tingkatkan aplikasi',
+                            title: t.feedback,
+                            subtitle: t.feedbackSubtitle,
                             onTap: () => Navigator.push(
                               context,
                               MaterialPageRoute(
@@ -659,8 +658,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                               );
                             },
                             icon: const Icon(Icons.login_rounded, size: 18),
-                            label: const Text(
-                              'Masuk / Hubungkan Akun Google',
+                            label: Text(
+                              t.connectGoogle,
                               style: TextStyle(fontWeight: FontWeight.w700),
                             ),
                           ),
@@ -684,9 +683,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                         onPressed: () => _logout(context),
                         icon: const Icon(Icons.logout_rounded, size: 18),
                         label: Text(
-                          isGuest
-                              ? 'Keluar dari Sesi Tamu'
-                              : 'Keluar dari Akun',
+                          isGuest ? t.logoutGuest : t.logout,
                           style: const TextStyle(fontWeight: FontWeight.w700),
                         ),
                       ),

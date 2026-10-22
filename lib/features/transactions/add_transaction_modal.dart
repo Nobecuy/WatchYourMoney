@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:intl/intl.dart';
+import 'package:watch_your_money/core/i18n/app_translations.dart';
 import 'package:watch_your_money/core/settings/settings_provider.dart';
 import 'package:watch_your_money/core/theme/app_colors.dart';
 import 'package:watch_your_money/core/theme/neumorphic_container.dart';
@@ -23,7 +24,8 @@ class AddTransactionModal extends ConsumerStatefulWidget {
   });
 
   @override
-  ConsumerState<AddTransactionModal> createState() => _AddTransactionModalState();
+  ConsumerState<AddTransactionModal> createState() =>
+      _AddTransactionModalState();
 }
 
 class _AddTransactionModalState extends ConsumerState<AddTransactionModal> {
@@ -68,10 +70,19 @@ class _AddTransactionModalState extends ConsumerState<AddTransactionModal> {
       _selectedCategory = editTx.categoryId;
 
       // Ensure custom or adjustment category exists in list
-      final catList = _type == 'expense' ? _expenseCategories : _incomeCategories;
-      final exists = catList.any((c) => (c['name'] as String).toLowerCase() == _selectedCategory.toLowerCase());
+      final catList = _type == 'expense'
+          ? _expenseCategories
+          : _incomeCategories;
+      final exists = catList.any(
+        (c) =>
+            (c['name'] as String).toLowerCase() ==
+            _selectedCategory.toLowerCase(),
+      );
       if (!exists) {
-        catList.insert(0, {'name': _selectedCategory, 'icon': Icons.label_outline_rounded});
+        catList.insert(0, {
+          'name': _selectedCategory,
+          'icon': Icons.label_outline_rounded,
+        });
       }
     } else {
       _type = widget.initialType;
@@ -100,7 +111,8 @@ class _AddTransactionModalState extends ConsumerState<AddTransactionModal> {
   }
 
   void _quickAddAmount(double add) {
-    final current = double.tryParse(_amountController.text.replaceAll('.', '')) ?? 0;
+    final current =
+        double.tryParse(_amountController.text.replaceAll('.', '')) ?? 0;
     final updated = current + add;
     _amountController.text = updated.toInt().toString();
   }
@@ -131,51 +143,76 @@ class _AddTransactionModalState extends ConsumerState<AddTransactionModal> {
   }
 
   void _showAddCustomCategoryDialog() {
+    final t = AppTranslations.of(ref.read(appSettingsProvider).languageCode);
     final textController = TextEditingController();
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: AppColors.surfaceContainerHigh,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text('Tambah Kategori Baru', style: TextStyle(color: AppColors.textPrimary, fontSize: 18, fontWeight: FontWeight.bold)),
+        title: Text(
+          t.addCategory,
+          style: const TextStyle(
+            color: AppColors.textPrimary,
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
         content: TextField(
           controller: textController,
           autofocus: true,
           style: const TextStyle(color: AppColors.textPrimary),
           decoration: InputDecoration(
-            hintText: 'Nama Kategori',
+            hintText: t.categoryName,
             hintStyle: const TextStyle(color: AppColors.textMuted),
             filled: true,
             fillColor: AppColors.surfaceDim,
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide.none,
+            ),
           ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text('Batal', style: TextStyle(color: AppColors.textSecondary)),
+            child: Text(
+              t.cancel,
+              style: const TextStyle(color: AppColors.textSecondary),
+            ),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.accentWhite,
               foregroundColor: AppColors.accentBlack,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
             ),
             onPressed: () {
               final cat = textController.text.trim();
               if (cat.isNotEmpty) {
                 setState(() {
                   if (_type == 'expense') {
-                    _expenseCategories.insert(0, {'name': cat, 'icon': Icons.label_outline_rounded});
+                    _expenseCategories.insert(0, {
+                      'name': cat,
+                      'icon': Icons.label_outline_rounded,
+                    });
                   } else {
-                    _incomeCategories.insert(0, {'name': cat, 'icon': Icons.label_outline_rounded});
+                    _incomeCategories.insert(0, {
+                      'name': cat,
+                      'icon': Icons.label_outline_rounded,
+                    });
                   }
                   _selectedCategory = cat;
                 });
                 Navigator.pop(ctx);
               }
             },
-            child: const Text('Simpan', style: TextStyle(fontWeight: FontWeight.bold)),
+            child: Text(
+              t.save,
+              style: const TextStyle(fontWeight: FontWeight.bold),
+            ),
           ),
         ],
       ),
@@ -183,23 +220,31 @@ class _AddTransactionModalState extends ConsumerState<AddTransactionModal> {
   }
 
   Future<void> _deleteThisTransaction() async {
+    final t = AppTranslations.of(ref.read(appSettingsProvider).languageCode);
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: AppColors.surfaceContainerHigh,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text(
-          'Hapus Transaksi?',
-          style: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.w600, fontSize: 16),
+        title: Text(
+          t.deleteTransaction,
+          style: const TextStyle(
+            color: AppColors.textPrimary,
+            fontWeight: FontWeight.w600,
+            fontSize: 16,
+          ),
         ),
-        content: const Text(
-          'Tindakan ini tidak bisa dibatalkan.',
-          style: TextStyle(color: AppColors.textMuted, fontSize: 13),
+        content: Text(
+          t.confirmDelete,
+          style: const TextStyle(color: AppColors.textMuted, fontSize: 13),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Batal', style: TextStyle(color: AppColors.textSecondary)),
+            child: Text(
+              t.cancel,
+              style: const TextStyle(color: AppColors.textSecondary),
+            ),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
@@ -207,7 +252,7 @@ class _AddTransactionModalState extends ConsumerState<AddTransactionModal> {
               foregroundColor: Colors.white,
             ),
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Hapus'),
+            child: Text(t.delete),
           ),
         ],
       ),
@@ -215,13 +260,15 @@ class _AddTransactionModalState extends ConsumerState<AddTransactionModal> {
 
     if (confirmed == true && mounted) {
       setState(() => _isLoading = true);
-      await ref.read(transactionRepositoryProvider).deleteTransaction(widget.transactionToEdit!.id);
+      await ref
+          .read(transactionRepositoryProvider)
+          .deleteTransaction(widget.transactionToEdit!.id);
       ref.invalidate(transactionsProvider);
       if (mounted) {
         Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Transaksi telah dihapus'),
+          SnackBar(
+            content: Text(t.txDeleted),
             backgroundColor: AppColors.surfaceContainerHigh,
           ),
         );
@@ -230,13 +277,14 @@ class _AddTransactionModalState extends ConsumerState<AddTransactionModal> {
   }
 
   Future<void> _saveTransaction() async {
+    final t = AppTranslations.of(ref.read(appSettingsProvider).languageCode);
     final rawText = _amountController.text.replaceAll('.', '').trim();
     final amount = double.tryParse(rawText);
 
     if (amount == null || amount <= 0) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Masukkan nominal transaksi yang valid'),
+        SnackBar(
+          content: Text(t.enterValidAmount),
           backgroundColor: AppColors.surfaceContainerHigh,
         ),
       );
@@ -269,7 +317,7 @@ class _AddTransactionModalState extends ConsumerState<AddTransactionModal> {
         Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(isEdit ? 'Transaksi berhasil diperbarui' : 'Transaksi berhasil disimpan'),
+            content: Text(isEdit ? t.txUpdated : t.txSaved),
             backgroundColor: AppColors.surfaceContainerHigh,
           ),
         );
@@ -291,8 +339,11 @@ class _AddTransactionModalState extends ConsumerState<AddTransactionModal> {
   Widget build(BuildContext context) {
     final settings = ref.watch(appSettingsProvider);
     final fmt = CurrencyFormatter.from(settings);
+    final t = AppTranslations.of(settings.languageCode);
     final isExpense = _type == 'expense';
-    final currentCategories = isExpense ? _expenseCategories : _incomeCategories;
+    final currentCategories = isExpense
+        ? _expenseCategories
+        : _incomeCategories;
 
     return Container(
       constraints: BoxConstraints(
@@ -330,11 +381,11 @@ class _AddTransactionModalState extends ConsumerState<AddTransactionModal> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
-                    widget.transactionToEdit != null ? 'Edit Transaksi' : 'Tambah Transaksi',
-                    style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                        ),
+                    widget.transactionToEdit != null
+                        ? t.editTransaction
+                        : t.addTransaction,
+                    style: Theme.of(context).textTheme.headlineMedium
+                        ?.copyWith(fontSize: 20, fontWeight: FontWeight.bold),
                   ),
                   Row(
                     children: [
@@ -347,7 +398,11 @@ class _AddTransactionModalState extends ConsumerState<AddTransactionModal> {
                             borderRadius: 10,
                             padding: EdgeInsets.zero,
                             child: Center(
-                              child: Icon(Icons.delete_outline_rounded, size: 18, color: AppColors.negativeLight),
+                              child: Icon(
+                                Icons.delete_outline_rounded,
+                                size: 18,
+                                color: AppColors.negativeLight,
+                              ),
                             ),
                           ),
                         ),
@@ -361,7 +416,11 @@ class _AddTransactionModalState extends ConsumerState<AddTransactionModal> {
                           borderRadius: 10,
                           padding: EdgeInsets.zero,
                           child: Center(
-                            child: Icon(Icons.close_rounded, size: 18, color: AppColors.textSecondary),
+                            child: Icon(
+                              Icons.close_rounded,
+                              size: 18,
+                              color: AppColors.textSecondary,
+                            ),
                           ),
                         ),
                       ),
@@ -387,7 +446,9 @@ class _AddTransactionModalState extends ConsumerState<AddTransactionModal> {
                           curve: Curves.easeOutCubic,
                           padding: const EdgeInsets.symmetric(vertical: 12),
                           decoration: BoxDecoration(
-                            color: isExpense ? AppColors.surfaceContainerHigh : Colors.transparent,
+                            color: isExpense
+                                ? AppColors.surfaceContainerHigh
+                                : Colors.transparent,
                             borderRadius: BorderRadius.circular(12),
                             boxShadow: isExpense
                                 ? const [
@@ -405,14 +466,20 @@ class _AddTransactionModalState extends ConsumerState<AddTransactionModal> {
                               Icon(
                                 Icons.arrow_upward_rounded,
                                 size: 16,
-                                color: isExpense ? AppColors.textPrimary : AppColors.textMuted,
+                                color: isExpense
+                                    ? AppColors.textPrimary
+                                    : AppColors.textMuted,
                               ),
                               const SizedBox(width: 6),
                               Text(
-                                'Pengeluaran',
+                                t.expense,
                                 style: TextStyle(
-                                  color: isExpense ? AppColors.textPrimary : AppColors.textMuted,
-                                  fontWeight: isExpense ? FontWeight.w700 : FontWeight.w500,
+                                  color: isExpense
+                                      ? AppColors.textPrimary
+                                      : AppColors.textMuted,
+                                  fontWeight: isExpense
+                                      ? FontWeight.w700
+                                      : FontWeight.w500,
                                   fontSize: 14,
                                 ),
                               ),
@@ -429,7 +496,9 @@ class _AddTransactionModalState extends ConsumerState<AddTransactionModal> {
                           curve: Curves.easeOutCubic,
                           padding: const EdgeInsets.symmetric(vertical: 12),
                           decoration: BoxDecoration(
-                            color: !isExpense ? AppColors.surfaceContainerHigh : Colors.transparent,
+                            color: !isExpense
+                                ? AppColors.surfaceContainerHigh
+                                : Colors.transparent,
                             borderRadius: BorderRadius.circular(12),
                             boxShadow: !isExpense
                                 ? const [
@@ -447,14 +516,20 @@ class _AddTransactionModalState extends ConsumerState<AddTransactionModal> {
                               Icon(
                                 Icons.arrow_downward_rounded,
                                 size: 16,
-                                color: !isExpense ? AppColors.textPrimary : AppColors.textMuted,
+                                color: !isExpense
+                                    ? AppColors.textPrimary
+                                    : AppColors.textMuted,
                               ),
                               const SizedBox(width: 6),
                               Text(
-                                'Pemasukan',
+                                t.income,
                                 style: TextStyle(
-                                  color: !isExpense ? AppColors.textPrimary : AppColors.textMuted,
-                                  fontWeight: !isExpense ? FontWeight.w700 : FontWeight.w500,
+                                  color: !isExpense
+                                      ? AppColors.textPrimary
+                                      : AppColors.textMuted,
+                                  fontWeight: !isExpense
+                                      ? FontWeight.w700
+                                      : FontWeight.w500,
                                   fontSize: 14,
                                 ),
                               ),
@@ -472,7 +547,10 @@ class _AddTransactionModalState extends ConsumerState<AddTransactionModal> {
               // ── Nominal Input Card ───────────────────────────
               NeumorphicContainer(
                 isPressed: true,
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 14,
+                ),
                 borderRadius: 16,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -492,7 +570,9 @@ class _AddTransactionModalState extends ConsumerState<AddTransactionModal> {
                         Text(
                           fmt.symbol,
                           style: TextStyle(
-                            color: isExpense ? const Color(0xFFE2E8F0) : AppColors.accentWhite,
+                            color: isExpense
+                                ? const Color(0xFFE2E8F0)
+                                : AppColors.accentWhite,
                             fontSize: 22,
                             fontWeight: FontWeight.w700,
                           ),
@@ -545,9 +625,9 @@ class _AddTransactionModalState extends ConsumerState<AddTransactionModal> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text(
-                    'KATEGORI',
-                    style: TextStyle(
+                  Text(
+                    t.categoryLabel,
+                    style: const TextStyle(
                       color: AppColors.textMuted,
                       fontSize: 11,
                       fontWeight: FontWeight.w700,
@@ -556,8 +636,8 @@ class _AddTransactionModalState extends ConsumerState<AddTransactionModal> {
                   ),
                   GestureDetector(
                     onTap: _showAddCustomCategoryDialog,
-                    child: const Text(
-                      '+ Tambah Kategori',
+                    child: Text(
+                      t.addCategoryShort,
                       style: TextStyle(
                         color: AppColors.textPrimary,
                         fontSize: 12,
@@ -582,12 +662,19 @@ class _AddTransactionModalState extends ConsumerState<AddTransactionModal> {
                     onTap: () => setState(() => _selectedCategory = name),
                     child: AnimatedContainer(
                       duration: const Duration(milliseconds: 200),
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 10,
+                      ),
                       decoration: BoxDecoration(
-                        color: isSelected ? AppColors.accentWhite : AppColors.surfaceContainerLow,
+                        color: isSelected
+                            ? AppColors.accentWhite
+                            : AppColors.surfaceContainerLow,
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(
-                          color: isSelected ? AppColors.accentWhite : const Color(0x0FFFFFFF),
+                          color: isSelected
+                              ? AppColors.accentWhite
+                              : const Color(0x0FFFFFFF),
                         ),
                         boxShadow: isSelected
                             ? const [
@@ -595,7 +682,7 @@ class _AddTransactionModalState extends ConsumerState<AddTransactionModal> {
                                   color: Color(0x40FFFFFF),
                                   blurRadius: 10,
                                   offset: Offset(0, 3),
-                                )
+                                ),
                               ]
                             : null,
                       ),
@@ -605,15 +692,21 @@ class _AddTransactionModalState extends ConsumerState<AddTransactionModal> {
                           Icon(
                             icon,
                             size: 15,
-                            color: isSelected ? AppColors.accentBlack : AppColors.textSecondary,
+                            color: isSelected
+                                ? AppColors.accentBlack
+                                : AppColors.textSecondary,
                           ),
                           const SizedBox(width: 6),
                           Text(
                             name,
                             style: TextStyle(
-                              color: isSelected ? AppColors.accentBlack : AppColors.textSecondary,
+                              color: isSelected
+                                  ? AppColors.accentBlack
+                                  : AppColors.textSecondary,
                               fontSize: 13,
-                              fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                              fontWeight: isSelected
+                                  ? FontWeight.w700
+                                  : FontWeight.w500,
                             ),
                           ),
                         ],
@@ -633,9 +726,9 @@ class _AddTransactionModalState extends ConsumerState<AddTransactionModal> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text(
-                          'METODE BAYAR',
-                          style: TextStyle(
+                        Text(
+                          t.paymentMethodLabel,
+                          style: const TextStyle(
                             color: AppColors.textMuted,
                             fontSize: 11,
                             fontWeight: FontWeight.w700,
@@ -645,9 +738,17 @@ class _AddTransactionModalState extends ConsumerState<AddTransactionModal> {
                         const SizedBox(height: 8),
                         Row(
                           children: [
-                            _buildPaymentMethodButton('cash', 'Tunai', Icons.payments_outlined),
+                            _buildPaymentMethodButton(
+                              'cash',
+                              t.filterCash,
+                              Icons.payments_outlined,
+                            ),
                             const SizedBox(width: 8),
-                            _buildPaymentMethodButton('card', 'Kartu', Icons.credit_card_rounded),
+                            _buildPaymentMethodButton(
+                              'card',
+                              t.filterCard,
+                              Icons.credit_card_rounded,
+                            ),
                           ],
                         ),
                       ],
@@ -661,9 +762,9 @@ class _AddTransactionModalState extends ConsumerState<AddTransactionModal> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text(
-                          'TANGGAL',
-                          style: TextStyle(
+                        Text(
+                          t.dateLabel,
+                          style: const TextStyle(
                             color: AppColors.textMuted,
                             fontSize: 11,
                             fontWeight: FontWeight.w700,
@@ -675,15 +776,23 @@ class _AddTransactionModalState extends ConsumerState<AddTransactionModal> {
                           onTap: _pickDate,
                           child: NeumorphicContainer(
                             isPressed: true,
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 11,
+                            ),
                             borderRadius: 12,
                             child: Row(
                               children: [
-                                const Icon(Icons.calendar_today_rounded, size: 14, color: AppColors.textSecondary),
+                                const Icon(
+                                  Icons.calendar_today_rounded,
+                                  size: 14,
+                                  color: AppColors.textSecondary,
+                                ),
                                 const SizedBox(width: 6),
                                 Expanded(
                                   child: Text(
-                                    DateFormat('dd MMM yyyy').format(_selectedDate),
+                                    DateFormat('dd MMM yyyy')
+                                        .format(_selectedDate),
                                     style: const TextStyle(
                                       color: AppColors.textPrimary,
                                       fontSize: 12,
@@ -707,17 +816,30 @@ class _AddTransactionModalState extends ConsumerState<AddTransactionModal> {
               // ── Catatan / Note Field ─────────────────────────
               NeumorphicContainer(
                 isPressed: true,
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 4,
+                ),
                 borderRadius: 999,
                 clipBehavior: Clip.antiAlias,
                 child: TextField(
                   controller: _noteController,
-                  style: const TextStyle(color: AppColors.textPrimary, fontSize: 13.5),
-                  decoration: const InputDecoration(
-                    hintText: 'Catatan tambahan (opsional)...',
-                    hintStyle: TextStyle(color: AppColors.textMuted, fontSize: 13),
+                  style: const TextStyle(
+                    color: AppColors.textPrimary,
+                    fontSize: 13.5,
+                  ),
+                  decoration: InputDecoration(
+                    hintText: t.noteHint,
+                    hintStyle: TextStyle(
+                      color: AppColors.textMuted,
+                      fontSize: 13,
+                    ),
                     border: InputBorder.none,
-                    icon: Icon(Icons.edit_note_rounded, color: AppColors.textMuted, size: 22),
+                    icon: Icon(
+                      Icons.edit_note_rounded,
+                      color: AppColors.textMuted,
+                      size: 22,
+                    ),
                   ),
                 ),
               ).animate().fadeIn(delay: 200.ms, duration: 250.ms),
@@ -726,41 +848,47 @@ class _AddTransactionModalState extends ConsumerState<AddTransactionModal> {
 
               // ── Simpan Button (White Pill CTA) ───────────────
               GestureDetector(
-                onTap: _isLoading ? null : _saveTransaction,
-                child: Container(
-                  height: 52,
-                  decoration: BoxDecoration(
-                    color: AppColors.accentWhite,
-                    borderRadius: BorderRadius.circular(999),
-                    boxShadow: const [
-                      BoxShadow(
-                        color: Color(0x33FFFFFF),
-                        offset: Offset(0, 4),
-                        blurRadius: 14,
-                      ),
-                    ],
-                  ),
-                  child: Center(
-                    child: _isLoading
-                        ? const SizedBox(
-                            width: 22,
-                            height: 22,
-                            child: CircularProgressIndicator(strokeWidth: 2.5, color: AppColors.accentBlack),
-                          )
-                        : Text(
-                            widget.transactionToEdit != null
-                                ? 'Simpan Perubahan'
-                                : 'Simpan ${isExpense ? 'Pengeluaran' : 'Pemasukan'}',
-                            style: const TextStyle(
-                              color: AppColors.accentBlack,
-                              fontSize: 15,
-                              fontWeight: FontWeight.w700,
-                              letterSpacing: 0.2,
-                            ),
+                    onTap: _isLoading ? null : _saveTransaction,
+                    child: Container(
+                      height: 52,
+                      decoration: BoxDecoration(
+                        color: AppColors.accentWhite,
+                        borderRadius: BorderRadius.circular(999),
+                        boxShadow: const [
+                          BoxShadow(
+                            color: Color(0x33FFFFFF),
+                            offset: Offset(0, 4),
+                            blurRadius: 14,
                           ),
-                  ),
-                ),
-              ).animate().fadeIn(delay: 250.ms, duration: 250.ms).slideY(begin: 0.15),
+                        ],
+                      ),
+                      child: Center(
+                        child: _isLoading
+                            ? const SizedBox(
+                                width: 22,
+                                height: 22,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2.5,
+                                  color: AppColors.accentBlack,
+                                ),
+                              )
+                            : Text(
+                                widget.transactionToEdit != null
+                                    ? t.saveChanges
+                                    : '${t.save} ${isExpense ? t.expense : t.income}',
+                                style: const TextStyle(
+                                  color: AppColors.accentBlack,
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w700,
+                                  letterSpacing: 0.2,
+                                ),
+                              ),
+                      ),
+                    ),
+                  )
+                  .animate()
+                  .fadeIn(delay: 250.ms, duration: 250.ms)
+                  .slideY(begin: 0.15),
             ],
           ),
         ),
@@ -782,7 +910,11 @@ class _AddTransactionModalState extends ConsumerState<AddTransactionModal> {
           ),
           child: Text(
             label,
-            style: const TextStyle(color: AppColors.textSecondary, fontSize: 11, fontWeight: FontWeight.w600),
+            style: const TextStyle(
+              color: AppColors.textSecondary,
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+            ),
           ),
         ),
       ),
@@ -802,7 +934,9 @@ class _AddTransactionModalState extends ConsumerState<AddTransactionModal> {
             color: isSelected ? AppColors.surfaceBright : AppColors.surfaceDim,
             borderRadius: BorderRadius.circular(12),
             border: Border.all(
-              color: isSelected ? AppColors.textPrimary : const Color(0x0FFFFFFF),
+              color: isSelected
+                  ? AppColors.textPrimary
+                  : const Color(0x0FFFFFFF),
             ),
           ),
           child: Row(
@@ -817,7 +951,9 @@ class _AddTransactionModalState extends ConsumerState<AddTransactionModal> {
               Text(
                 label,
                 style: TextStyle(
-                  color: isSelected ? AppColors.textPrimary : AppColors.textMuted,
+                  color: isSelected
+                      ? AppColors.textPrimary
+                      : AppColors.textMuted,
                   fontSize: 12,
                   fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
                 ),

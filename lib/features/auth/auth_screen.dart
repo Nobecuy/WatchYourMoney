@@ -109,21 +109,61 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 // ── Brand ──────────────────────────────────────────
-                Text(
-                  'watchh',
-                  style: Theme.of(context).textTheme.displayMedium?.copyWith(
-                    letterSpacing: -2,
-                    fontWeight: FontWeight.w800,
-                  ),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    // Logo icon
+                    Container(
+                      width: 52,
+                      height: 52,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(14),
+                        boxShadow: const [
+                          BoxShadow(
+                            color: AppColors.shadowDark,
+                            offset: Offset(4, 4),
+                            blurRadius: 12,
+                          ),
+                          BoxShadow(
+                            color: AppColors.shadowLight,
+                            offset: Offset(-3, -3),
+                            blurRadius: 8,
+                          ),
+                        ],
+                      ),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(14),
+                        child: Image.asset(
+                          'assets/images/app_icon.png',
+                          fit: BoxFit.cover,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 14),
+                    // Text brand
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'watchh',
+                          style: Theme.of(context).textTheme.displaySmall?.copyWith(
+                            letterSpacing: -1.5,
+                            fontWeight: FontWeight.w800,
+                            fontSize: 32,
+                          ),
+                        ),
+                        Text(
+                          'your money',
+                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            letterSpacing: 3,
+                            fontSize: 10,
+                            color: AppColors.textMuted,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
                 ).animate().fadeIn(duration: 400.ms).slideY(begin: -0.3),
-                const SizedBox(height: 4),
-                Text(
-                  'your money',
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    letterSpacing: 2,
-                    fontSize: 11,
-                  ),
-                ).animate().fadeIn(delay: 100.ms, duration: 400.ms),
                 const SizedBox(height: 48),
 
                 // ── Mode toggle ────────────────────────────────────

@@ -76,13 +76,13 @@ class _StatisticsScreenState extends ConsumerState<StatisticsScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            'Analitik Keuangan',
+                            t.analyticsTitle,
                             style: Theme.of(context).textTheme.headlineLarge,
                           ),
                           const SizedBox(height: 2),
-                          const Text(
-                            'Pantau arus kas kamu',
-                            style: TextStyle(
+                          Text(
+                            t.analyticsSubtitle,
+                            style: const TextStyle(
                               color: AppColors.textSecondary,
                               fontSize: 13,
                             ),
@@ -161,10 +161,10 @@ class _StatisticsScreenState extends ConsumerState<StatisticsScreen> {
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          const Expanded(
+                          Expanded(
                             child: Text(
-                              'GRAFIK STATISTIK',
-                              style: TextStyle(
+                              t.chartStats,
+                              style: const TextStyle(
                                 color: AppColors.textMuted,
                                 fontSize: 11,
                                 fontWeight: FontWeight.w700,
@@ -210,11 +210,13 @@ class _StatisticsScreenState extends ConsumerState<StatisticsScreen> {
                                 totalIncome,
                                 totalExpense,
                                 fmt,
+                                t,
                               )
                             : _buildPieChart(
                                 byCategory,
                                 totalIncome,
                                 totalExpense,
+                                t,
                               ),
                       ).animate().fadeIn(delay: 150.ms, duration: 300.ms),
                     ),
@@ -233,10 +235,10 @@ class _StatisticsScreenState extends ConsumerState<StatisticsScreen> {
                                 mainAxisAlignment:
                                     MainAxisAlignment.spaceBetween,
                                 children: [
-                                  const Expanded(
+                                  Expanded(
                                     child: Text(
-                                      'RINCIAN PENGELUARAN',
-                                      style: TextStyle(
+                                      t.spendingDetail,
+                                      style: const TextStyle(
                                         color: AppColors.textMuted,
                                         fontSize: 11,
                                         fontWeight: FontWeight.w700,
@@ -247,7 +249,7 @@ class _StatisticsScreenState extends ConsumerState<StatisticsScreen> {
                                   ),
                                   const SizedBox(width: 8),
                                   Text(
-                                    '${byCategory.length} Kategori',
+                                    '${byCategory.length} ${t.categoriesCount}',
                                     style: const TextStyle(
                                       color: AppColors.textSecondary,
                                       fontSize: 11,
@@ -423,6 +425,7 @@ class _StatisticsScreenState extends ConsumerState<StatisticsScreen> {
     double totalIncome,
     double totalExpense,
     CurrencyFormatter fmt,
+    AppTranslations t,
   ) {
     final now = DateTime.now();
     final List<Map<String, dynamic>> barData = [];
@@ -496,10 +499,10 @@ class _StatisticsScreenState extends ConsumerState<StatisticsScreen> {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            const Expanded(
+            Expanded(
               child: Text(
-                'Arus Kas',
-                style: TextStyle(
+                t.cashFlowChart,
+                style: const TextStyle(
                   color: AppColors.textPrimary,
                   fontSize: 13,
                   fontWeight: FontWeight.bold,
@@ -511,9 +514,9 @@ class _StatisticsScreenState extends ConsumerState<StatisticsScreen> {
             Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                _buildDotLegend('Masuk', AppColors.positive),
+                _buildDotLegend(t.income, AppColors.positive),
                 const SizedBox(width: 8),
-                _buildDotLegend('Keluar', AppColors.negative),
+                _buildDotLegend(t.expense, AppColors.negative),
               ],
             ),
           ],
@@ -532,7 +535,7 @@ class _StatisticsScreenState extends ConsumerState<StatisticsScreen> {
                   getTooltipItem: (group, groupIndex, rod, rodIndex) {
                     final isIncome = rodIndex == 0;
                     return BarTooltipItem(
-                      '${isIncome ? "Masuk: " : "Keluar: "}${fmt.format(rod.toY)}',
+                      '${isIncome ? "${t.income}: " : "${t.expense}: "}${fmt.format(rod.toY)}',
                       TextStyle(
                         color: isIncome
                             ? AppColors.positive
@@ -616,14 +619,15 @@ class _StatisticsScreenState extends ConsumerState<StatisticsScreen> {
     Map<String, double> byCategory,
     double totalIncome,
     double totalExpense,
+    AppTranslations t,
   ) {
     if (byCategory.isEmpty) {
-      return const SizedBox(
+      return SizedBox(
         height: 180,
         child: Center(
           child: Text(
-            'Belum ada data pengeluaran',
-            style: TextStyle(color: AppColors.textMuted),
+            t.noSpendingData,
+            style: const TextStyle(color: AppColors.textMuted),
           ),
         ),
       );
@@ -634,9 +638,9 @@ class _StatisticsScreenState extends ConsumerState<StatisticsScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          'Proporsi Pengeluaran per Kategori',
-          style: TextStyle(
+        Text(
+          t.spendingByCat,
+          style: const TextStyle(
             color: AppColors.textPrimary,
             fontSize: 13,
             fontWeight: FontWeight.bold,

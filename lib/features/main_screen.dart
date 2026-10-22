@@ -3,6 +3,8 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:watch_your_money/core/i18n/app_translations.dart';
+import 'package:watch_your_money/core/settings/settings_provider.dart';
 import 'package:watch_your_money/core/theme/app_colors.dart';
 import 'package:watch_your_money/core/updates/update_helper.dart';
 import 'package:watch_your_money/features/dashboard/dashboard_screen.dart';
@@ -62,6 +64,7 @@ class _MainScreenState extends ConsumerState<MainScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final t = AppTranslations.of(ref.watch(settingsProvider).languageCode);
     final bottomPadding = MediaQuery.paddingOf(context).bottom;
     // Calculate vertical center of the centerDocked FAB (48x48):
     final fabBottomOffset = 56.0 + bottomPadding - 24.0;
@@ -95,53 +98,53 @@ class _MainScreenState extends ConsumerState<MainScreen> {
                 if (_isMenuOpen) setState(() => _isMenuOpen = false);
                 setState(() => _currentIndex = index);
               },
-              items: const [
+              items: [
                 BottomNavigationBarItem(
-                  icon: Padding(
+                  icon: const Padding(
                     padding: EdgeInsets.only(bottom: 2.5),
                     child: Icon(Icons.dashboard_outlined, size: 20),
                   ),
-                  activeIcon: Padding(
+                  activeIcon: const Padding(
                     padding: EdgeInsets.only(bottom: 2.5),
                     child: Icon(Icons.dashboard_rounded, size: 20),
                   ),
-                  label: 'Dashboard',
+                  label: t.dashboard,
                 ),
                 BottomNavigationBarItem(
-                  icon: Padding(
+                  icon: const Padding(
                     padding: EdgeInsets.only(bottom: 2.5),
                     child: Icon(Icons.receipt_long_outlined, size: 20),
                   ),
-                  activeIcon: Padding(
+                  activeIcon: const Padding(
                     padding: EdgeInsets.only(bottom: 2.5),
                     child: Icon(Icons.receipt_long_rounded, size: 20),
                   ),
-                  label: 'Riwayat',
+                  label: t.history,
                 ),
                 BottomNavigationBarItem(
-                  icon: Padding(
+                  icon: const Padding(
                     padding: EdgeInsets.only(bottom: 2.5),
                     child: Icon(Icons.analytics_outlined, size: 20),
                   ),
-                  activeIcon: Padding(
+                  activeIcon: const Padding(
                     padding: EdgeInsets.only(bottom: 2.5),
                     child: Icon(Icons.analytics_rounded, size: 20),
                   ),
-                  label: 'Statistik',
+                  label: t.statistics,
                 ),
                 BottomNavigationBarItem(
-                  icon: Padding(
+                  icon: const Padding(
                     padding: EdgeInsets.only(bottom: 2.5),
                     child: Icon(
                       Icons.account_balance_wallet_outlined,
                       size: 20,
                     ),
                   ),
-                  activeIcon: Padding(
+                  activeIcon: const Padding(
                     padding: EdgeInsets.only(bottom: 2.5),
                     child: Icon(Icons.account_balance_wallet_rounded, size: 20),
                   ),
-                  label: 'Wallet',
+                  label: t.wallet,
                 ),
               ],
             ),

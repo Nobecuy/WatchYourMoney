@@ -4,19 +4,20 @@ import 'package:watch_your_money/core/utils/currency_formatter.dart';
 import 'package:watch_your_money/domain/models/transaction_model.dart';
 import 'package:watch_your_money/features/dashboard/dashboard_provider.dart';
 
-enum _Intent {
-  greeting,
-  summary,
+/// Analysis types available to non-developer users.
+enum AnalysisType {
+  financialOverview,
   spendingAnalysis,
-  incomeAnalysis,
-  savingTip,
-  recordTransaction,
-  unknown,
+  budgetIntelligence,
+  transactionInsights,
+  financialHealthCheck,
 }
 
 class LocalFinancialEngine {
   final WidgetRef _ref;
   const LocalFinancialEngine(this._ref);
+
+  // ── Keyword lists for developer chat mode ──────────────────────────
 
   static const _summaryKw = [
     'saldo',
@@ -54,7 +55,6 @@ class LocalFinancialEngine {
     'nabung',
     'simpan',
   ];
-
   static const _greetingKw = [
     'halo',
     'hai',
@@ -69,114 +69,352 @@ class LocalFinancialEngine {
     'kapabilitas',
   ];
 
-  _Intent _classifyIntent(String msg) {
-    final lower = msg.toLowerCase();
-    if (_greetingKw.any(lower.contains)) return _Intent.greeting;
-    if (_summaryKw.any(lower.contains)) return _Intent.summary;
-    if (_spendingKw.any(lower.contains)) return _Intent.spendingAnalysis;
-    if (_incomeKw.any(lower.contains)) return _Intent.incomeAnalysis;
-    if (_tipKw.any(lower.contains)) return _Intent.savingTip;
-    return _Intent.unknown;
-  }
+  // ── Public: run structured analysis by type ─────────────────────────
 
-  String _generateResponse(
-    _Intent intent,
-    List<TransactionModel> transactions,
-    CurrencyFormatter fmt,
-  ) {
-    switch (intent) {
-      case _Intent.greeting:
-        return 'Halo! Saya Noir, asisten keuangan pribadi kamu.\n\n'
-            'Berikut beberapa hal yang bisa saya bantu secara otomatis:\n\n'
-            '- Mencatat Pengeluaran: Ketik "Beli Kopi 25rb" atau "Makan siang 15000"\n'
-            '- Mencatat Pemasukan: Ketik "Gaji 5jt" atau "Bonus proyek 500rb"\n'
-            '- Cek Sisa Saldo: Tanya "Berapa sisa uangku?" atau "Sisa saldo"\n'
-            '- Rekap Pengeluaran: Tanya "Berapa total pengeluaranku?"\n'
-            '- Rekap Pemasukan: Tanya "Berapa total pemasukanku?"\n\n'
-            'Kamu bisa ketik langsung di kolom chat atau tekan tombol shortcut di bawah.';
+  Future<String> runAnalysis(AnalysisType type) async {
+    final transactions = await _ref.read(transactionsProvider.future);
+    final settings = _ref.read(settingsProvider);
+    final fmt = CurrencyFormatter.from(settings);
 
-      case _Intent.summary:
-        final income = transactions
-            .where((t) => t.type == 'income')
-            .fold(0.0, (s, t) => s + t.amount);
-        final expense = transactions
-            .where((t) => t.type == 'expense')
-            .fold(0.0, (s, t) => s + t.amount);
-        final balance = income - expense;
-        final rate = income > 0
-            ? ((balance / income) * 100).toStringAsFixed(1)
-            : '0.0';
-        return 'Ringkasan Keuangan\n\n'
-            '- Pemasukan: ${fmt.format(income)}\n'
-            '- Pengeluaran: ${fmt.format(expense)}\n'
-            '- Saldo bersih: ${fmt.format(balance)}\n'
-            '- Saving rate: $rate%';
-
-      case _Intent.spendingAnalysis:
-        final expenses = transactions.where((t) => t.type == 'expense');
-        if (expenses.isEmpty) return 'Belum ada pengeluaran yang tercatat.';
-        final total = expenses.fold(0.0, (s, t) => s + t.amount);
-        final grouped = <String, double>{};
-        for (final t in expenses) {
-          grouped[t.categoryId] = (grouped[t.categoryId] ?? 0) + t.amount;
-        }
-        final sorted = grouped.entries.toList()
-          ..sort((a, b) => b.value.compareTo(a.value));
-        final top = sorted
-            .take(3)
-            .map((e) {
-              final pct = ((e.value / total) * 100).toStringAsFixed(1);
-              return '- ${e.key}: ${fmt.format(e.value)} ($pct%)';
-            })
-            .join('\n');
-        return 'Top Pengeluaran\n\n$top\n\nTotal: ${fmt.format(total)}';
-
-      case _Intent.incomeAnalysis:
-        final incomes = transactions.where((t) => t.type == 'income');
-        if (incomes.isEmpty) return 'Belum ada pemasukan yang tercatat.';
-        final total = incomes.fold(0.0, (s, t) => s + t.amount);
-        final grouped = <String, double>{};
-        for (final t in incomes) {
-          grouped[t.categoryId] = (grouped[t.categoryId] ?? 0) + t.amount;
-        }
-        final breakdown = grouped.entries
-            .map((e) => '- ${e.key}: ${fmt.format(e.value)}')
-            .join('\n');
-        return 'Sumber Pemasukan\n\n$breakdown\n\nTotal: ${fmt.format(total)}';
-
-      case _Intent.savingTip:
-        final income = transactions
-            .where((t) => t.type == 'income')
-            .fold(0.0, (s, t) => s + t.amount);
-        final expense = transactions
-            .where((t) => t.type == 'expense')
-            .fold(0.0, (s, t) => s + t.amount);
-        if (income == 0) {
-          return 'Info: Catat pemasukan kamu dulu agar saya bisa memberi saran yang tepat.';
-        }
-        final ratio = expense / income;
-        if (ratio < 0.5) {
-          return 'Luar biasa! Rasio pengeluaranmu sangat sehat (${(ratio * 100).toStringAsFixed(0)}%). Pertahankan!';
-        }
-        if (ratio < 0.7) {
-          return 'Bagus! Pengeluaran di ${(ratio * 100).toStringAsFixed(0)}% dari pemasukan. Masih aman.';
-        }
-        if (ratio < 0.9) {
-          return 'Perhatian! Pengeluaranmu ${(ratio * 100).toStringAsFixed(0)}% dari pemasukan. Cari kategori terbesar dan coba efisiensi.';
-        }
-        return 'Peringatan! Pengeluaran mencapai ${(ratio * 100).toStringAsFixed(0)}% dari pemasukan. Segera review anggaranmu!';
-
-      case _Intent.recordTransaction:
-        return 'Untuk mencatat transaksi, gunakan tombol + di layar utama.';
-
-      case _Intent.unknown:
-        return 'Maaf, saya belum mengerti pertanyaanmu. Coba tanyakan tentang:\n'
-            '- Saldo atau ringkasan\n'
-            '- Pengeluaran terbesar\n'
-            '- Pemasukan\n'
-            '- Tips hemat';
+    switch (type) {
+      case AnalysisType.financialOverview:
+        return _financialOverview(transactions, fmt);
+      case AnalysisType.spendingAnalysis:
+        return _spendingAnalysis(transactions, fmt);
+      case AnalysisType.budgetIntelligence:
+        return _budgetIntelligence(transactions, fmt);
+      case AnalysisType.transactionInsights:
+        return _transactionInsights(transactions, fmt);
+      case AnalysisType.financialHealthCheck:
+        return _financialHealthCheck(transactions, fmt);
     }
   }
+
+  // ── A. Financial Overview ───────────────────────────────────────────
+
+  String _financialOverview(List<TransactionModel> txs, CurrencyFormatter fmt) {
+    final income = txs
+        .where((t) => t.type == 'income')
+        .fold(0.0, (s, t) => s + t.amount);
+    final expense = txs
+        .where((t) => t.type == 'expense')
+        .fold(0.0, (s, t) => s + t.amount);
+    final balance = income - expense;
+    final status = balance >= 0 ? 'Surplus' : 'Defisit';
+
+    // Biggest expense category
+    final expByCat = <String, double>{};
+    for (final t in txs.where((t) => t.type == 'expense')) {
+      expByCat[t.categoryId] = (expByCat[t.categoryId] ?? 0) + t.amount;
+    }
+    final topCat = expByCat.entries.isEmpty
+        ? null
+        : expByCat.entries.reduce((a, b) => a.value > b.value ? a : b);
+
+    // This month vs last month comparison
+    final now = DateTime.now();
+    final thisMonth = txs.where(
+      (t) => t.date.month == now.month && t.date.year == now.year,
+    );
+    final lastMonth = txs.where((t) {
+      final lm = DateTime(now.year, now.month - 1);
+      return t.date.month == lm.month && t.date.year == lm.year;
+    });
+    final thisExp = thisMonth
+        .where((t) => t.type == 'expense')
+        .fold(0.0, (s, t) => s + t.amount);
+    final lastExp = lastMonth
+        .where((t) => t.type == 'expense')
+        .fold(0.0, (s, t) => s + t.amount);
+    final change = lastExp > 0
+        ? '${((thisExp - lastExp) / lastExp * 100).toStringAsFixed(1)}% vs bulan lalu'
+        : 'N/A (belum ada data bulan lalu)';
+
+    final lines = <String>['Ringkasan Keuangan', ''];
+    lines.add('- Total Pemasukan: ${fmt.format(income)}');
+    lines.add('- Total Pengeluaran: ${fmt.format(expense)}');
+    lines.add('- Selisih ($status): ${fmt.format(balance.abs())}');
+    if (topCat != null) {
+      lines.add(
+        '- Kategori pengeluaran terbesar: ${topCat.key} (${fmt.format(topCat.value)})',
+      );
+    }
+    lines.add('- Pengeluaran bulan ini: ${fmt.format(thisExp)} ($change)');
+    return lines.join('\n');
+  }
+
+  // ── B. Spending Analysis ─────────────────────────────────────────────
+
+  String _spendingAnalysis(List<TransactionModel> txs, CurrencyFormatter fmt) {
+    final expenses = txs.where((t) => t.type == 'expense').toList();
+    if (expenses.isEmpty) return 'Belum ada pengeluaran yang tercatat.';
+
+    final total = expenses.fold(0.0, (s, t) => s + t.amount);
+
+    // Category breakdown
+    final byCat = <String, double>{};
+    for (final t in expenses) {
+      byCat[t.categoryId] = (byCat[t.categoryId] ?? 0) + t.amount;
+    }
+    final sorted = byCat.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+
+    final lines = <String>['Analisis Pengeluaran', ''];
+    lines.add('Total pengeluaran: ${fmt.format(total)}');
+    lines.add('');
+    lines.add('Rincian per kategori:');
+    for (final e in sorted.take(5)) {
+      final pct = ((e.value / total) * 100).toStringAsFixed(1);
+      lines.add('- ${e.key}: ${fmt.format(e.value)} ($pct%)');
+    }
+
+    // Daily trend (last 7 days)
+    final now = DateTime.now();
+    final dailyTotals = <double>[];
+    for (int i = 6; i >= 0; i--) {
+      final d = now.subtract(Duration(days: i));
+      final dayTotal = expenses
+          .where(
+            (t) =>
+                t.date.year == d.year &&
+                t.date.month == d.month &&
+                t.date.day == d.day,
+          )
+          .fold(0.0, (s, t) => s + t.amount);
+      dailyTotals.add(dayTotal);
+    }
+    final avgDaily = dailyTotals.reduce((a, b) => a + b) / 7;
+    lines.add('');
+    lines.add('Rata-rata pengeluaran harian (7 hari): ${fmt.format(avgDaily)}');
+
+    // Recommendation
+    if (sorted.isNotEmpty) {
+      final top = sorted.first;
+      final topPct = ((top.value / total) * 100).round();
+      if (topPct > 40) {
+        lines.add('');
+        lines.add(
+          'Rekomendasi: Kategori "${top.key}" mendominasi pengeluaran kamu ($topPct%). Pertimbangkan untuk evaluasi area ini.',
+        );
+      } else {
+        lines.add('');
+        lines.add(
+          'Rekomendasi: Distribusi pengeluaran kamu cukup merata. Tidak ada kategori yang mendominasi berlebihan.',
+        );
+      }
+    }
+    return lines.join('\n');
+  }
+
+  // ── C. Budget Intelligence ───────────────────────────────────────────
+
+  String _budgetIntelligence(
+    List<TransactionModel> txs,
+    CurrencyFormatter fmt,
+  ) {
+    final now = DateTime.now();
+    final monthTxs = txs.where(
+      (t) => t.date.month == now.month && t.date.year == now.year,
+    );
+    final monthExpense = monthTxs
+        .where((t) => t.type == 'expense')
+        .fold(0.0, (s, t) => s + t.amount);
+    final monthIncome = monthTxs
+        .where((t) => t.type == 'income')
+        .fold(0.0, (s, t) => s + t.amount);
+
+    final lines = <String>['Cek Anggaran', ''];
+    lines.add('- Pemasukan bulan ini: ${fmt.format(monthIncome)}');
+    lines.add('- Pengeluaran bulan ini: ${fmt.format(monthExpense)}');
+
+    if (monthIncome > 0) {
+      final usedPct = ((monthExpense / monthIncome) * 100).toStringAsFixed(1);
+      lines.add('- Persentase anggaran terpakai: $usedPct%');
+
+      final remaining = monthIncome - monthExpense;
+      lines.add('- Sisa anggaran: ${fmt.format(remaining)}');
+
+      // Projection to end of month
+      final daysPassed = now.day;
+      final daysInMonth = DateTime(now.year, now.month + 1, 0).day;
+      final dailyRate = daysPassed > 0 ? monthExpense / daysPassed : 0.0;
+      final projected = dailyRate * daysInMonth;
+      lines.add('- Proyeksi pengeluaran akhir bulan: ${fmt.format(projected)}');
+
+      final pctNum = double.parse(usedPct);
+      if (pctNum >= 90) {
+        lines.add('');
+        lines.add(
+          'Peringatan: Anggaran hampir habis ($usedPct%). Segera kurangi pengeluaran non-esensial.',
+        );
+      } else if (pctNum >= 70) {
+        lines.add('');
+        lines.add(
+          'Perhatian: Pengeluaran sudah mencapai $usedPct% dari pemasukan. Batasi pengeluaran besar.',
+        );
+      } else {
+        lines.add('');
+        lines.add('Status: Anggaran masih dalam batas aman ($usedPct%).');
+      }
+    } else {
+      lines.add(
+        '- Belum ada pemasukan bulan ini. Catat pemasukan untuk mendapat analisis anggaran.',
+      );
+    }
+    return lines.join('\n');
+  }
+
+  // ── D. Transaction Insights ──────────────────────────────────────────
+
+  String _transactionInsights(
+    List<TransactionModel> txs,
+    CurrencyFormatter fmt,
+  ) {
+    if (txs.isEmpty) return 'Belum ada transaksi yang tercatat.';
+
+    final lines = <String>['Pola Transaksi', ''];
+
+    // Largest transaction
+    final expenses = txs.where((t) => t.type == 'expense').toList();
+    if (expenses.isNotEmpty) {
+      final largest = expenses.reduce((a, b) => a.amount > b.amount ? a : b);
+      lines.add('Transaksi terbesar:');
+      lines.add(
+        '- ${largest.categoryId}: ${fmt.format(largest.amount)} (${largest.date.day}/${largest.date.month})',
+      );
+      lines.add('');
+    }
+
+    // Duplicate detection (same amount + same category within 3 days)
+    final duplicates = <String>[];
+    for (int i = 0; i < expenses.length; i++) {
+      for (int j = i + 1; j < expenses.length; j++) {
+        final a = expenses[i];
+        final b = expenses[j];
+        if (a.amount == b.amount &&
+            a.categoryId == b.categoryId &&
+            (a.date.difference(b.date).inHours).abs() < 72) {
+          duplicates.add(
+            '- ${a.categoryId}: ${fmt.format(a.amount)} pada ${a.date.day}/${a.date.month} dan ${b.date.day}/${b.date.month}',
+          );
+        }
+      }
+    }
+    if (duplicates.isNotEmpty) {
+      lines.add('Kemungkinan transaksi ganda:');
+      lines.addAll(duplicates.take(3));
+      lines.add('');
+    }
+
+    // Average expense vs outliers
+    if (expenses.isNotEmpty) {
+      final avg = expenses.fold(0.0, (s, t) => s + t.amount) / expenses.length;
+      final outliers = expenses.where((t) => t.amount > avg * 2.5).toList();
+      if (outliers.isNotEmpty) {
+        lines.add('Transaksi menyimpang dari rata-rata (${fmt.format(avg)}):');
+        for (final o in outliers.take(3)) {
+          lines.add(
+            '- ${o.categoryId}: ${fmt.format(o.amount)} (${o.date.day}/${o.date.month})',
+          );
+        }
+      } else {
+        lines.add(
+          'Tidak ada transaksi yang menyimpang signifikan dari rata-rata (${fmt.format(avg)}).',
+        );
+      }
+    }
+
+    return lines.join('\n');
+  }
+
+  // ── E. Financial Health Check ────────────────────────────────────────
+
+  String _financialHealthCheck(
+    List<TransactionModel> txs,
+    CurrencyFormatter fmt,
+  ) {
+    final income = txs
+        .where((t) => t.type == 'income')
+        .fold(0.0, (s, t) => s + t.amount);
+    final expense = txs
+        .where((t) => t.type == 'expense')
+        .fold(0.0, (s, t) => s + t.amount);
+    final balance = income - expense;
+
+    final lines = <String>['Cek Kesehatan Keuangan', ''];
+
+    // Status
+    if (income == 0 && expense == 0) {
+      lines.add(
+        'Belum ada transaksi yang tercatat. Mulai catat pemasukan dan pengeluaran untuk mendapat analisis.',
+      );
+      return lines.join('\n');
+    }
+
+    lines.add('- Total Pemasukan: ${fmt.format(income)}');
+    lines.add('- Total Pengeluaran: ${fmt.format(expense)}');
+    lines.add('- Saldo: ${fmt.format(balance)}');
+
+    if (expense > income && income > 0) {
+      lines.add('- Status: Defisit (pengeluaran melebihi pemasukan)');
+      lines.add('');
+      lines.add('Peringatan: Keuangan dalam kondisi defisit. Prioritas:');
+      lines.add('1. Identifikasi pengeluaran yang bisa dipangkas');
+      lines.add('2. Fokus pada kebutuhan, tunda keinginan');
+      lines.add('3. Tingkatkan pemasukan atau tambah sumber pendapatan');
+    } else if (income > 0) {
+      final savingRate = ((balance / income) * 100).toStringAsFixed(1);
+      lines.add('- Saving rate: $savingRate%');
+      lines.add('- Status: Surplus');
+
+      final sr = double.parse(savingRate);
+      lines.add('');
+      if (sr >= 20) {
+        lines.add(
+          'Kondisi keuangan sehat. Saving rate di atas 20% adalah prestasi yang baik.',
+        );
+        lines.add(
+          'Prioritas: Pertahankan kebiasaan ini dan pertimbangkan untuk berinvestasi.',
+        );
+      } else if (sr >= 10) {
+        lines.add(
+          'Kondisi keuangan cukup baik, tapi saving rate masih di bawah ideal.',
+        );
+        lines.add(
+          'Prioritas: Tingkatkan saving rate minimal ke 20% dengan mengurangi pengeluaran non-esensial.',
+        );
+      } else {
+        lines.add(
+          'Kondisi keuangan perlu perhatian. Saving rate terlalu rendah.',
+        );
+        lines.add(
+          'Prioritas: Audit pengeluaran, identifikasi area pemborosan, dan tetapkan target tabungan bulanan.',
+        );
+      }
+    }
+
+    // Consistency check
+    final now = DateTime.now();
+    final months = <int>{};
+    for (final t in txs) {
+      if (t.date.year == now.year) months.add(t.date.month);
+    }
+    if (months.length >= 3) {
+      lines.add('');
+      lines.add(
+        'Konsistensi: Kamu aktif mencatat transaksi di $months bulan tahun ini. Pertahankan kebiasaan ini.',
+      );
+    } else {
+      lines.add('');
+      lines.add(
+        'Konsistensi: Rajinlah mencatat transaksi setiap hari untuk mendapat analisis yang lebih akurat.',
+      );
+    }
+
+    return lines.join('\n');
+  }
+
+  // ── Developer chat mode: keyword-based intent ───────────────────────
 
   Stream<String> streamResponse({
     required String userMessage,
@@ -185,7 +423,57 @@ class LocalFinancialEngine {
     final transactions = await _ref.read(transactionsProvider.future);
     final settings = _ref.read(settingsProvider);
     final fmt = CurrencyFormatter.from(settings);
-    final intent = _classifyIntent(userMessage);
-    yield _generateResponse(intent, transactions, fmt);
+
+    final lower = userMessage.toLowerCase();
+    if (_greetingKw.any(lower.contains)) {
+      yield _greetingResponse();
+      return;
+    }
+    if (_summaryKw.any(lower.contains)) {
+      yield _financialOverview(transactions, fmt);
+      return;
+    }
+    if (_spendingKw.any(lower.contains)) {
+      yield _spendingAnalysis(transactions, fmt);
+      return;
+    }
+    if (_incomeKw.any(lower.contains)) {
+      yield _incomeAnalysis(transactions, fmt);
+      return;
+    }
+    if (_tipKw.any(lower.contains)) {
+      yield _financialHealthCheck(transactions, fmt);
+      return;
+    }
+    yield 'Maaf, saya belum mengerti pertanyaanmu. Coba tanyakan tentang:\n'
+        '- Saldo atau ringkasan\n'
+        '- Pengeluaran terbesar\n'
+        '- Pemasukan\n'
+        '- Tips hemat';
+  }
+
+  String _greetingResponse() {
+    return 'Halo! Saya Noir, asisten keuangan pribadi kamu.\n\n'
+        'Berikut beberapa hal yang bisa saya bantu secara otomatis:\n\n'
+        '- Mencatat Pengeluaran: Ketik "Beli Kopi 25rb" atau "Makan siang 15000"\n'
+        '- Mencatat Pemasukan: Ketik "Gaji 5jt" atau "Bonus proyek 500rb"\n'
+        '- Cek Sisa Saldo: Tanya "Berapa sisa uangku?" atau "Sisa saldo"\n'
+        '- Rekap Pengeluaran: Tanya "Berapa total pengeluaranku?"\n'
+        '- Rekap Pemasukan: Tanya "Berapa total pemasukanku?"\n\n'
+        'Kamu bisa ketik langsung di kolom chat atau tekan tombol shortcut di bawah.';
+  }
+
+  String _incomeAnalysis(List<TransactionModel> txs, CurrencyFormatter fmt) {
+    final incomes = txs.where((t) => t.type == 'income');
+    if (incomes.isEmpty) return 'Belum ada pemasukan yang tercatat.';
+    final total = incomes.fold(0.0, (s, t) => s + t.amount);
+    final grouped = <String, double>{};
+    for (final t in incomes) {
+      grouped[t.categoryId] = (grouped[t.categoryId] ?? 0) + t.amount;
+    }
+    final breakdown = grouped.entries
+        .map((e) => '- ${e.key}: ${fmt.format(e.value)}')
+        .join('\n');
+    return 'Sumber Pemasukan\n\n$breakdown\n\nTotal: ${fmt.format(total)}';
   }
 }
