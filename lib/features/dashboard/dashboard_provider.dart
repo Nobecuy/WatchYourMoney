@@ -18,13 +18,17 @@ import 'package:watch_your_money/features/auth/auth_provider.dart';
 final transactionRepositoryProvider = Provider<TransactionRepository>((ref) {
   final authState = ref.watch(authProvider);
   if (authState.isGuest) {
+    // Guest: scoped to 'transactions_guest' box
     return HiveTransactionRepository();
   }
+  // Logged-in: always try Supabase first (dual-write with per-user Hive cache)
   return SupabaseTransactionRepository(Supabase.instance.client);
 });
 
 /// Provider daftar transaksi
-final transactionsProvider = FutureProvider<List<TransactionModel>>((ref) async {
+final transactionsProvider = FutureProvider<List<TransactionModel>>((
+  ref,
+) async {
   final repository = ref.watch(transactionRepositoryProvider);
   return repository.getTransactions();
 });
@@ -35,7 +39,9 @@ final chatMessageRepositoryProvider = Provider<ChatMessageRepository>((ref) {
 });
 
 /// Pending action repository provider
-final pendingActionRepositoryProvider = Provider<PendingActionRepository>((ref) {
+final pendingActionRepositoryProvider = Provider<PendingActionRepository>((
+  ref,
+) {
   return HivePendingActionRepository();
 });
 

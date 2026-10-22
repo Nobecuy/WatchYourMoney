@@ -14,6 +14,7 @@ import 'package:watch_your_money/features/transactions/add_transaction_modal.dar
 import 'package:watch_your_money/features/ai_assistant/ai_assistant_screen.dart';
 import 'package:watch_your_money/core/settings/settings_provider.dart';
 import 'package:watch_your_money/core/i18n/app_translations.dart';
+import 'package:watch_your_money/core/tips/app_tips.dart';
 
 class DashboardScreen extends ConsumerStatefulWidget {
   const DashboardScreen({super.key});
@@ -24,6 +25,22 @@ class DashboardScreen extends ConsumerStatefulWidget {
 
 class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   bool _showBalance = true;
+  int _tipIndex = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    // Rotate tips every 8 seconds quietly in background
+    Future.delayed(const Duration(seconds: 8), _rotateTip);
+  }
+
+  void _rotateTip() {
+    if (!mounted) return;
+    setState(() {
+      _tipIndex = (_tipIndex + 1) % AppTips.all.length;
+    });
+    Future.delayed(const Duration(seconds: 8), _rotateTip);
+  }
 
   void _onProfileTap(BuildContext context) {
     Navigator.of(context)
@@ -224,6 +241,14 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
               ),
             ),
 
+            // ── App Tips ──────────────────────────────────────────
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(20, 14, 20, 0),
+                child: _buildTipCard(),
+              ),
+            ),
+
             // ── Quick Analytics Bar Chart (Diagram Batang) ───────
             SliverToBoxAdapter(
               child: Padding(
@@ -332,6 +357,137 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         ),
       ),
     );
+  }
+
+  // ── Tips Card ────────────────────────────────────────────────────────────
+
+  Widget _buildTipCard() {
+    final tip = AppTips.all[_tipIndex];
+    return AnimatedSwitcher(
+      duration: const Duration(milliseconds: 500),
+      transitionBuilder: (child, anim) => FadeTransition(
+        opacity: anim,
+        child: SlideTransition(
+          position: Tween<Offset>(
+            begin: const Offset(0.04, 0),
+            end: Offset.zero,
+          ).animate(CurvedAnimation(parent: anim, curve: Curves.easeOut)),
+          child: child,
+        ),
+      ),
+      child: Container(
+        key: ValueKey(_tipIndex),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+        decoration: BoxDecoration(
+          color: AppColors.surfaceContainerLow,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: const Color(0x0CFFFFFF)),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Icon
+            Container(
+              width: 28,
+              height: 28,
+              decoration: BoxDecoration(
+                color: const Color(0xFF818CF8).withValues(alpha: 0.10),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Center(
+                child: Icon(
+                  _tipIcon(tip.icon),
+                  color: const Color(0xFF818CF8),
+                  size: 14,
+                ),
+              ),
+            ),
+            const SizedBox(width: 10),
+            // Text
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'TIPS',
+                    style: TextStyle(
+                      color: Color(0xFF818CF8),
+                      fontSize: 9,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 1.2,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    tip.text,
+                    style: const TextStyle(
+                      color: AppColors.textSecondary,
+                      fontSize: 12,
+                      height: 1.4,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            // Dot indicator + nav
+            const SizedBox(width: 8),
+            Column(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                GestureDetector(
+                  onTap: () => setState(() {
+                    _tipIndex = (_tipIndex + 1) % AppTips.all.length;
+                  }),
+                  child: const Icon(
+                    Icons.chevron_right_rounded,
+                    color: AppColors.textMuted,
+                    size: 18,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  '${_tipIndex + 1}/${AppTips.all.length}',
+                  style: const TextStyle(
+                    color: AppColors.textMuted,
+                    fontSize: 9,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    ).animate().fadeIn(delay: 200.ms, duration: 300.ms);
+  }
+
+  IconData _tipIcon(String key) {
+    switch (key) {
+      case 'swap':
+        return Icons.swap_horiz_rounded;
+      case 'edit':
+        return Icons.edit_rounded;
+      case 'ai':
+        return Icons.auto_awesome_rounded;
+      case 'chart':
+        return Icons.bar_chart_rounded;
+      case 'stats':
+        return Icons.pie_chart_outline_rounded;
+      case 'filter':
+        return Icons.filter_list_rounded;
+      case 'currency':
+        return Icons.payments_outlined;
+      case 'language':
+        return Icons.language_rounded;
+      case 'guest':
+        return Icons.cloud_off_rounded;
+      case 'balance':
+        return Icons.visibility_outlined;
+      case 'feedback':
+        return Icons.feedback_outlined;
+      default:
+        return Icons.account_balance_wallet_rounded;
+    }
   }
 
   void _openModal(String type, {String? paymentMethod}) {

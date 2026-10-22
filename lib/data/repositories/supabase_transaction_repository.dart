@@ -1,18 +1,23 @@
-import 'package:hive/hive.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:watch_your_money/data/repositories/hive_transaction_repository.dart';
 import 'package:watch_your_money/domain/models/transaction_model.dart';
 import 'package:watch_your_money/domain/repositories/transaction_repository.dart';
 
+/// Dual-write repository: writes to Supabase (cloud) and a per-user Hive box
+/// (local cache). Falls back to the local cache when offline.
 class SupabaseTransactionRepository implements TransactionRepository {
   final SupabaseClient _client;
+
   SupabaseTransactionRepository(this._client);
 
-  Box<TransactionModel> get _localBox => Hive.box<TransactionModel>('transactions');
+  /// Scoped local cache — uses the logged-in user's Hive box, never the guest box.
+  HiveTransactionRepository get _local =>
+      HiveTransactionRepository(userId: _client.auth.currentUser?.id);
 
   @override
   Future<List<TransactionModel>> getTransactions() async {
     final userId = _client.auth.currentUser?.id;
-    if (userId == null) return _localBox.values.toList();
+    if (userId == null) return _local.getTransactions();
 
     try {
       final response = await _client
@@ -21,23 +26,25 @@ class SupabaseTransactionRepository implements TransactionRepository {
           .eq('user_id', userId)
           .order('transaction_date', ascending: false);
 
-      final remoteList = (response as List).map((e) => TransactionModel.fromJson(e)).toList();
+      final remoteList = (response as List)
+          .map((e) => TransactionModel.fromJson(e))
+          .toList();
 
-      // Sync remote transactions to local cache
+      // Keep local cache in sync with remote.
       for (final tx in remoteList) {
-        await _localBox.put(tx.id, tx);
+        await _local.addTransaction(tx);
       }
       return remoteList;
-    } catch (e) {
-      // Fallback to local storage if Supabase table is not created yet or offline
-      return _localBox.values.toList();
+    } catch (_) {
+      // Offline or Supabase table not ready — fall back to local cache.
+      return _local.getTransactions();
     }
   }
 
   @override
   Future<void> addTransaction(TransactionModel transaction) async {
-    // Save to local storage first
-    await _localBox.put(transaction.id, transaction);
+    // Write to local cache immediately (offline-first).
+    await _local.addTransaction(transaction);
 
     final userId = _client.auth.currentUser?.id;
     if (userId == null) return;
@@ -46,15 +53,14 @@ class SupabaseTransactionRepository implements TransactionRepository {
       final json = transaction.toJson();
       json['user_id'] = userId;
       await _client.from('transactions').insert(json);
-    } catch (e) {
-      // Local box has already stored it; will be synced once table exists
+    } catch (_) {
+      // Already in local cache; will be pushed next time online.
     }
   }
 
   @override
   Future<void> updateTransaction(TransactionModel transaction) async {
-    // Update local storage first
-    await _localBox.put(transaction.id, transaction);
+    await _local.updateTransaction(transaction);
 
     final userId = _client.auth.currentUser?.id;
     if (userId == null) return;
@@ -63,18 +69,15 @@ class SupabaseTransactionRepository implements TransactionRepository {
       final json = transaction.toJson();
       json['user_id'] = userId;
       await _client.from('transactions').update(json).eq('id', transaction.id);
-    } catch (e) {
-      // Local box has already stored it
-    }
+    } catch (_) {}
   }
 
   @override
   Future<void> deleteTransaction(String id) async {
-    await _localBox.delete(id);
+    await _local.deleteTransaction(id);
+
     try {
       await _client.from('transactions').delete().eq('id', id);
-    } catch (e) {
-      // Table may not exist yet
-    }
+    } catch (_) {}
   }
 }

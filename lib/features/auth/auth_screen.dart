@@ -61,7 +61,9 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
         }
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Akun dibuat! Silakan cek Gmail Anda untuk konfirmasi, atau matikan "Confirm email" di Supabase Dashboard.'),
+            content: Text(
+              'Akun dibuat! Silakan cek Gmail Anda untuk konfirmasi, atau matikan "Confirm email" di Supabase Dashboard.',
+            ),
             backgroundColor: AppColors.surfaceContainerHigh,
             duration: Duration(seconds: 4),
           ),
@@ -92,9 +94,8 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
 
   void _enterGuestMode() {
     ref.read(authProvider.notifier).setGuest();
-    Navigator.of(context).pushReplacement(
-      MaterialPageRoute(builder: (_) => const MainScreen()),
-    );
+    Navigator.of(context)
+        .pushReplacement(MaterialPageRoute(builder: (_) => const MainScreen()));
   }
 
   @override
@@ -145,20 +146,22 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'watchh',
-                          style: Theme.of(context).textTheme.displaySmall?.copyWith(
-                            letterSpacing: -1.5,
-                            fontWeight: FontWeight.w800,
-                            fontSize: 32,
-                          ),
+                          'watch',
+                          style: Theme.of(context).textTheme.displaySmall
+                              ?.copyWith(
+                                letterSpacing: -1.5,
+                                fontWeight: FontWeight.w800,
+                                fontSize: 32,
+                              ),
                         ),
                         Text(
                           'your money',
-                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            letterSpacing: 3,
-                            fontSize: 10,
-                            color: AppColors.textMuted,
-                          ),
+                          style: Theme.of(context).textTheme.bodySmall
+                              ?.copyWith(
+                                letterSpacing: 3,
+                                fontSize: 10,
+                                color: AppColors.textMuted,
+                              ),
                         ),
                       ],
                     ),
@@ -173,8 +176,20 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                   borderRadius: 999,
                   child: Row(
                     children: [
-                      Expanded(child: _buildModeBtn('Login', _isLoginMode, () => setState(() => _isLoginMode = true))),
-                      Expanded(child: _buildModeBtn('Register', !_isLoginMode, () => setState(() => _isLoginMode = false))),
+                      Expanded(
+                        child: _buildModeBtn(
+                          'Login',
+                          _isLoginMode,
+                          () => setState(() => _isLoginMode = true),
+                        ),
+                      ),
+                      Expanded(
+                        child: _buildModeBtn(
+                          'Register',
+                          !_isLoginMode,
+                          () => setState(() => _isLoginMode = false),
+                        ),
+                      ),
                     ],
                   ),
                 ).animate().fadeIn(delay: 200.ms, duration: 400.ms),
@@ -185,17 +200,30 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                 const SizedBox(height: 8),
                 NeumorphicContainer(
                   isPressed: true,
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 2,
+                  ),
                   borderRadius: 999,
                   clipBehavior: Clip.antiAlias,
                   child: TextField(
                     controller: _emailController,
                     keyboardType: TextInputType.emailAddress,
-                    style: const TextStyle(color: AppColors.textPrimary, fontSize: 14),
+                    style: const TextStyle(
+                      color: AppColors.textPrimary,
+                      fontSize: 14,
+                    ),
                     decoration: const InputDecoration(
                       hintText: 'email@kamu.com',
-                      hintStyle: TextStyle(color: AppColors.textMuted, fontSize: 14),
-                      prefixIcon: Icon(Icons.mail_outline_rounded, color: AppColors.textMuted, size: 20),
+                      hintStyle: TextStyle(
+                        color: AppColors.textMuted,
+                        fontSize: 14,
+                      ),
+                      prefixIcon: Icon(
+                        Icons.mail_outline_rounded,
+                        color: AppColors.textMuted,
+                        size: 20,
+                      ),
                       border: InputBorder.none,
                       enabledBorder: InputBorder.none,
                       focusedBorder: InputBorder.none,
@@ -210,17 +238,30 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                 const SizedBox(height: 8),
                 NeumorphicContainer(
                   isPressed: true,
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 2,
+                  ),
                   borderRadius: 999,
                   clipBehavior: Clip.antiAlias,
                   child: TextField(
                     controller: _passwordController,
                     obscureText: true,
-                    style: const TextStyle(color: AppColors.textPrimary, fontSize: 14),
+                    style: const TextStyle(
+                      color: AppColors.textPrimary,
+                      fontSize: 14,
+                    ),
                     decoration: const InputDecoration(
                       hintText: '••••••••',
-                      hintStyle: TextStyle(color: AppColors.textMuted, fontSize: 14),
-                      prefixIcon: Icon(Icons.lock_outline_rounded, color: AppColors.textMuted, size: 20),
+                      hintStyle: TextStyle(
+                        color: AppColors.textMuted,
+                        fontSize: 14,
+                      ),
+                      prefixIcon: Icon(
+                        Icons.lock_outline_rounded,
+                        color: AppColors.textMuted,
+                        size: 20,
+                      ),
                       border: InputBorder.none,
                       enabledBorder: InputBorder.none,
                       focusedBorder: InputBorder.none,
@@ -242,9 +283,11 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                       padding: const EdgeInsets.symmetric(vertical: 16),
                       child: _isLoading
                           ? const SizedBox(
-                              height: 20, width: 20,
+                              height: 20,
+                              width: 20,
                               child: CircularProgressIndicator(
-                                strokeWidth: 2, color: AppColors.accentBlack,
+                                strokeWidth: 2,
+                                color: AppColors.accentBlack,
                               ),
                             )
                           : Text(
@@ -266,10 +309,8 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                     onPressed: _enterGuestMode,
                     child: Text(
                       'Lanjutkan sebagai Guest →',
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: AppColors.textMuted,
-                        fontSize: 13,
-                      ),
+                      style: Theme.of(context).textTheme.bodyMedium
+                          ?.copyWith(color: AppColors.textMuted, fontSize: 13),
                     ),
                   ),
                 ).animate().fadeIn(delay: 600.ms, duration: 400.ms),
@@ -290,10 +331,20 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
         decoration: BoxDecoration(
           color: selected ? AppColors.surfaceContainerHigh : Colors.transparent,
           borderRadius: BorderRadius.circular(999),
-          boxShadow: selected ? [
-            const BoxShadow(color: AppColors.shadowDark, offset: Offset(2, 2), blurRadius: 6),
-            const BoxShadow(color: AppColors.shadowLight, offset: Offset(-2, -2), blurRadius: 6),
-          ] : null,
+          boxShadow: selected
+              ? [
+                  const BoxShadow(
+                    color: AppColors.shadowDark,
+                    offset: Offset(2, 2),
+                    blurRadius: 6,
+                  ),
+                  const BoxShadow(
+                    color: AppColors.shadowLight,
+                    offset: Offset(-2, -2),
+                    blurRadius: 6,
+                  ),
+                ]
+              : null,
         ),
         child: Center(
           child: Text(
