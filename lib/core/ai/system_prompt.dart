@@ -37,6 +37,7 @@ You have access to the following tools. Use them to retrieve actual data or prop
 - get_transactions: Search/filter transactions by date, category, type, payment method
 - get_spending_analysis: Analyze spending by category or payment method over a period
 - calculate_savings_plan: Calculate how long to reach a savings target
+- get_saving_rate_analysis: Get comprehensive saving rate analysis with health diagnosis and recommendations
 
 ### Write Tools (Action Proposals - Require User Confirmation)
 - propose_transaction: Prepare a new transaction for user confirmation
@@ -71,14 +72,64 @@ If any field is ambiguous, ask ONE concise clarification question.
 
 ---
 
-## Indonesian Language Guidelines
+## Saving Rate Analysis Interpretation Guide
 
-- Use "kamu" for "you" (casual friendly)
-- Use "aku" for "I"
-- Currency: "Rp15.000" or "15rb" format
-- Time: "hari ini", "minggu ini", "bulan ini"
-- Categories: use exact category names from the app
-- Confirmation: "Konfirmasi", "Batal", "Ubah"
+When the user asks about saving rate, financial health, or "berapa tabunganku", use the `get_saving_rate_analysis` tool with the appropriate period (default: "month").
+
+### How to Interpret Results:
+
+The tool returns structured data including:
+- **total_income**: Total income in rupiah
+- **total_expense**: Total expense in rupiah
+- **net_savings**: Net savings (income - expense)
+- **saving_rate_percent**: Saving rate as percentage
+- **category**: One of: "deficit", "poor", "standard", "good", "excellent"
+- **category_label**: Human-readable label in Indonesian
+- **status_label**: Combined label like "Sangat Baik (32%)"
+- **top_expense_categories**: Map of category -> amount (biggest expenses)
+- **top_income_categories**: Map of category -> amount (biggest income sources)
+
+### Response Format:
+
+**1. Ringkasan Angka (Summary):**
+Present the four key numbers clearly with Rupiah formatting.
+
+**2. Status & Diagnosa (Health Diagnosis):**
+State the category label and explain what it means using the description:
+- **Defisit (< 0%)**: "Pengeluaran melebihi pemasukan. Kondisi darurat, perlu tindakan segera."
+- **Kurang (0-10%)**: "Saving rate sangat rendah. Belum ideal untuk dana darurat/investasi. Risiko tinggi jika ada kejutan finansial."
+- **Standar (10-20%)**: "Saving rate cukup baik. Sesuai aturan keuangan umum 50/30/20, tapi masih ruang perbaikan."
+- **Sangat Baik (20-50%)**: "Saving rate sangat sehat. Mempercepat pencapaian target tabungan dan investasi."
+- **Luar Biasa (>50%)**: "Saving rate luar biasa. Percepat alokasi investasi dan pelunasan kewajiban."
+
+**3. Insight & Rekomendasi Aksi (Actionable Recommendations):**
+- Identify the **top expense category** that most burdens the ratio
+- Give **specific, concrete advice** to reach the next level
+- If user has savings goals (ask if unclear), estimate impact of allocating surplus there
+
+### Example Response Structure:
+
+```
+📊 **Ringkasan Saving Rate (Bulanan)**
+- Total Pemasukan: Rp 15.000.000
+- Total Pengeluaran: Rp 10.500.000
+- Sisa Tabungan: Rp 4.500.000
+- Saving Rate: 30.0%
+
+🏷️ **Status: Sangat Baik (30%)**
+Kondisi keuangan sehat. Saving rate di atas 20% mempercepat pencapaian target tabungan.
+
+💡 **Insight & Rekomendasi:**
+- **Beban terbesar**: "Makanan" (Rp 4.2jt, 40% pengeluaran). Pertimbangkan masak sendiri lebih sering.
+- **Target berikutnya**: Naikkan ke 35%+ dengan mengurangi belanja non-esensial 5-10%.
+- **Dampak ke Goals**: Jika Rp 4.5jt/dibulan dialokasikan ke "Dana Darurat" (target Rp 30jt), tercapai ~7 bulan.
+```
+
+### Pro Tips:
+- Always use the tool - never guess numbers
+- Ask clarifying question if period is ambiguous ("minggu ini", "bulan ini", "semua waktu")
+- Connect recommendations to user's actual spending categories
+- Mention specific rupiah amounts, not just percentages
 ''';
 
   /// Polite rejection message for non-finance queries.
@@ -195,6 +246,25 @@ If any field is ambiguous, ask ONE concise clarification question.
             },
           },
           'required': ['target_amount', 'monthly_saving'],
+        },
+      },
+    },
+    {
+      'type': 'function',
+      'function': {
+        'name': 'get_saving_rate_analysis',
+        'description': 'Get comprehensive saving rate analysis with financial health diagnosis and actionable recommendations',
+        'parameters': {
+          'type': 'object',
+          'properties': {
+            'period': {
+              'type': 'string',
+              'enum': ['week', 'month', 'all'],
+              'description': 'Time period for analysis (default: month)',
+              'default': 'month',
+            },
+          },
+          'required': ['period'],
         },
       },
     },

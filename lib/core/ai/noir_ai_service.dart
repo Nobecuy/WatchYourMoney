@@ -246,6 +246,11 @@ class NoirAIService {
               args['idempotency_key'] as String,
             );
             break;
+          case 'get_saving_rate_analysis':
+            result = await toolHandlers.handleGetSavingRateAnalysis(
+              args['period'] as String,
+            );
+            break;
           default:
             result = {'error': 'Unknown tool: $toolName'};
         }
@@ -413,6 +418,7 @@ class NoirAIService {
     final financialSummary = context['financial_summary'] as Map<String, dynamic>?;
     final currency = context['currency'] as Map<String, dynamic>?;
     final categories = context['categories'] as List<String>?;
+    final savingRateAnalysis = context['saving_rate_analysis'] as Map<String, dynamic>?;
 
     return '''
 Kamu adalah Noir, asisten keuangan lokal yang berjalan sepenuhnya di perangkat pengguna (offline-first).
@@ -429,6 +435,7 @@ KONTEKS KEUANGAN SAAT INI:
 ${financialSummary != null ? '- Total Pemasukan: ${financialSummary['formatted']?['total_income'] ?? 'N/A'}' : ''}
 ${financialSummary != null ? '- Total Pengeluaran: ${financialSummary['formatted']?['total_expense'] ?? 'N/A'}' : ''}
 ${financialSummary != null ? '- Saldo: ${financialSummary['formatted']?['balance'] ?? 'N/A'}' : ''}
+${savingRateAnalysis != null ? '- Saving Rate: ${savingRateAnalysis['saving_rate_formatted'] ?? 'N/A'} (${savingRateAnalysis['status_label'] ?? 'N/A'})' : ''}
 ${currency != null ? '- Mata Uang: ${currency['code']} (${currency['symbol']})' : ''}
 ${categories != null ? '- Kategori tersedia: ${categories.join(', ')}' : ''}
 
@@ -437,6 +444,7 @@ TOOL YANG TERSEDIA:
 - get_transactions: Cari transaksi dengan filter
 - get_spending_analysis: Analisis pengeluaran per kategori
 - calculate_savings_plan: Hitung rencana tabungan
+- get_saving_rate_analysis: Analisis saving rate dengan diagnosa kesehatan keuangan & rekomendasi
 - propose_transaction: Usulkan transaksi baru (BELUM menyimpan)
 - confirm_transaction: Konfirmasi & simpan transaksi yang diusulkan
 - propose_transaction_update: Usulkan perubahan transaksi

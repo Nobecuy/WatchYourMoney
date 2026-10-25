@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Defines which directories the FileProvider is allowed to share.
+  We expose the cache/temp directory so the downloaded APK can be
+  opened by the system installer via a content:// URI.
+-->
+<paths xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- getTemporaryDirectory() on Android → getCacheDir() -->
+    <cache-path name="cache" path="." />
+    <!-- getApplicationDocumentsDirectory() on Android → getFilesDir() -->
+    <files-path name="files" path="." />
+    <!-- External cache (some devices) -->
+    <external-cache-path name="external_cache" path="." />
+</paths>

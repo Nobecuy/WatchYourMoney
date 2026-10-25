@@ -214,7 +214,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                       fontSize: 14,
                     ),
                     decoration: const InputDecoration(
-                      hintText: 'email@kamu.com',
+                      hintText: 'Email',
                       hintStyle: TextStyle(
                         color: AppColors.textMuted,
                         fontSize: 14,
@@ -234,7 +234,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                 const SizedBox(height: 16),
 
                 // ── Password field ─────────────────────────────────
-                _buildLabel('PASSWORD'),
+                _buildLabel('Password'),
                 const SizedBox(height: 8),
                 NeumorphicContainer(
                   isPressed: true,
@@ -308,7 +308,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                   child: TextButton(
                     onPressed: _enterGuestMode,
                     child: Text(
-                      'Lanjutkan sebagai Guest →',
+                      'Lanjutkan tanpa login →',
                       style: Theme.of(context).textTheme.bodyMedium
                           ?.copyWith(color: AppColors.textMuted, fontSize: 13),
                     ),

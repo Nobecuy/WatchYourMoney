@@ -11,6 +11,7 @@ enum AnalysisType {
   budgetIntelligence,
   transactionInsights,
   financialHealthCheck,
+  savingRate,
 }
 
 class LocalFinancialEngine {
@@ -87,6 +88,8 @@ class LocalFinancialEngine {
         return _transactionInsights(transactions, fmt);
       case AnalysisType.financialHealthCheck:
         return _financialHealthCheck(transactions, fmt);
+      case AnalysisType.savingRate:
+        return _savingRateAnalysis(transactions, fmt);
     }
   }
 
@@ -325,6 +328,140 @@ class LocalFinancialEngine {
     }
 
     return lines.join('\n');
+  }
+
+  // ── F. Saving Rate Analysis ─────────────────────────────────────────
+
+  String _savingRateAnalysis(
+    List<TransactionModel> txs,
+    CurrencyFormatter fmt,
+  ) {
+    if (txs.isEmpty) {
+      return 'Belum ada transaksi.\n\nCatat pemasukan dan pengeluaran untuk menghitung saving rate kamu.';
+    }
+
+    final now = DateTime.now();
+
+    // ── Hitung per bulan (3 bulan terakhir) ───────────────────────
+    final monthlyData = <String, Map<String, double>>{};
+    for (int m = 0; m < 3; m++) {
+      final month = DateTime(now.year, now.month - m, 1);
+      final key = '${_monthName(month.month)} ${month.year}';
+      final monthTxs = txs.where(
+        (t) => t.date.month == month.month && t.date.year == month.year,
+      );
+      final inc = monthTxs
+          .where((t) => t.type == 'income')
+          .fold(0.0, (s, t) => s + t.amount);
+      final exp = monthTxs
+          .where((t) => t.type == 'expense')
+          .fold(0.0, (s, t) => s + t.amount);
+      if (inc > 0 || exp > 0) {
+        monthlyData[key] = {'income': inc, 'expense': exp};
+      }
+    }
+
+    // ── Total keseluruhan ─────────────────────────────────────────
+    final totalIncome = txs
+        .where((t) => t.type == 'income')
+        .fold(0.0, (s, t) => s + t.amount);
+    final totalExpense = txs
+        .where((t) => t.type == 'expense')
+        .fold(0.0, (s, t) => s + t.amount);
+    final totalBalance = totalIncome - totalExpense;
+    final overallRate = totalIncome > 0
+        ? (totalBalance / totalIncome * 100)
+        : 0.0;
+
+    final lines = <String>['Hitung Saving Rate', ''];
+
+    // ── Per-bulan breakdown ───────────────────────────────────────
+    if (monthlyData.isNotEmpty) {
+      lines.add('Saving Rate per Bulan:');
+      for (final entry in monthlyData.entries) {
+        final inc = entry.value['income']!;
+        final exp = entry.value['expense']!;
+        final bal = inc - exp;
+        final rate = inc > 0 ? (bal / inc * 100) : 0.0;
+        final rateStr = rate.toStringAsFixed(1);
+        final statusIcon = rate >= 20
+            ? '(Sehat)'
+            : rate >= 0
+            ? '(Cukup)'
+            : '(Defisit)';
+        lines.add(
+          '- ${entry.key}: $rateStr% $statusIcon'
+          '\n  Masuk ${fmt.format(inc)}, Keluar ${fmt.format(exp)}, Tabungan ${fmt.format(bal)}',
+        );
+      }
+      lines.add('');
+    }
+
+    // ── Ringkasan total ───────────────────────────────────────────
+    lines.add('Ringkasan Total:');
+    lines.add('- Total Pemasukan: ${fmt.format(totalIncome)}');
+    lines.add('- Total Pengeluaran: ${fmt.format(totalExpense)}');
+    lines.add('- Total Tabungan: ${fmt.format(totalBalance)}');
+    lines.add('- Saving Rate: ${overallRate.toStringAsFixed(1)}%');
+    lines.add('');
+
+    // ── Interpretasi ─────────────────────────────────────────────
+    lines.add('Interpretasi:');
+    if (totalIncome == 0) {
+      lines.add(
+        '- Belum ada pemasukan tercatat. Catat pemasukan untuk hasil yang akurat.',
+      );
+    } else if (overallRate >= 30) {
+      lines.add(
+        '- Saving rate ${overallRate.toStringAsFixed(1)}% — Luar biasa! Jauh di atas standar ideal 20%.',
+      );
+      lines.add('- Pertimbangkan untuk menginvestasikan kelebihan tabungan.');
+    } else if (overallRate >= 20) {
+      lines.add(
+        '- Saving rate ${overallRate.toStringAsFixed(1)}% — Sehat. Kamu memenuhi standar ideal 20%.',
+      );
+      lines.add('- Pertahankan kebiasaan ini konsisten setiap bulan.');
+    } else if (overallRate >= 10) {
+      lines.add(
+        '- Saving rate ${overallRate.toStringAsFixed(1)}% — Cukup, tapi masih di bawah ideal 20%.',
+      );
+      lines.add(
+        '- Target: hemat ${fmt.format(totalIncome * 0.20 - totalBalance)} lagi untuk capai 20%.',
+      );
+    } else if (overallRate > 0) {
+      lines.add(
+        '- Saving rate ${overallRate.toStringAsFixed(1)}% — Rendah. Perlu evaluasi pengeluaran.',
+      );
+      lines.add(
+        '- Coba terapkan aturan 50/30/20: 50% kebutuhan, 30% keinginan, 20% tabungan.',
+      );
+    } else {
+      lines.add('- Saving rate negatif — pengeluaran melebihi pemasukan.');
+      lines.add(
+        '- Prioritas: identifikasi dan pangkas pengeluaran tidak esensial segera.',
+      );
+    }
+
+    return lines.join('\n');
+  }
+
+  static String _monthName(int month) {
+    const names = [
+      '',
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'Mei',
+      'Jun',
+      'Jul',
+      'Agu',
+      'Sep',
+      'Okt',
+      'Nov',
+      'Des',
+    ];
+    return month >= 1 && month <= 12 ? names[month] : '$month';
   }
 
   // ── E. Financial Health Check ────────────────────────────────────────

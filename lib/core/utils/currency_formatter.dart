@@ -1,3 +1,4 @@
+import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:watch_your_money/core/settings/settings_model.dart';
 
@@ -100,4 +101,72 @@ class CurrencyFormatter {
 
   /// Compact IDR format. Prefer [CurrencyFormatter.from] for reactive currency.
   static String compactStatic(double amount) => _idr.compact(amount);
+}
+
+/// [TextInputFormatter] that adds thousand separators (dots) as the user types.
+/// Uses Indonesian format (dots for thousands, no decimals for IDR).
+class ThousandsSeparatorInputFormatter extends TextInputFormatter {
+  final String separator;
+
+  const ThousandsSeparatorInputFormatter({this.separator = '.'});
+
+  @override
+  TextEditingValue formatEditUpdate(
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
+    // If the new value is empty, allow it
+    if (newValue.text.isEmpty) {
+      return newValue;
+    }
+
+    // Remove all non-digit characters
+    final digitsOnly = newValue.text.replaceAll(RegExp(r'[^\d]'), '');
+
+    // If nothing left after removing non-digits, allow empty
+    if (digitsOnly.isEmpty) {
+      return TextEditingValue.empty;
+    }
+
+    // Format with thousand separators
+    final formatted = _addSeparators(digitsOnly);
+
+    // Calculate new cursor position
+    // We try to maintain the cursor's relative position from the right end
+    int newCursorPosition = formatted.length;
+    if (oldValue.text.isNotEmpty) {
+      final oldDigitsOnly = oldValue.text.replaceAll(RegExp(r'[^\d]'), '');
+      final oldFormatted = _addSeparators(oldDigitsOnly);
+
+      // Calculate how many digits were to the right of cursor in old value
+      final oldCursorOffsetFromRight = oldFormatted.length - oldValue.selection.baseOffset;
+
+      // Position cursor the same distance from right in new formatted value
+      newCursorPosition = formatted.length - oldCursorOffsetFromRight;
+      newCursorPosition = newCursorPosition.clamp(0, formatted.length);
+    }
+
+    return TextEditingValue(
+      text: formatted,
+      selection: TextSelection.collapsed(offset: newCursorPosition),
+    );
+  }
+
+  String _addSeparators(String digits) {
+    final buffer = StringBuffer();
+    for (int i = 0; i < digits.length; i++) {
+      final remaining = digits.length - i;
+      if (remaining % 3 == 0 && i != 0) {
+        buffer.write(separator);
+      }
+      buffer.write(digits[i]);
+    }
+    return buffer.toString();
+  }
+}
+
+/// Extension to easily get numeric value from a formatted string
+extension NumericValue on String {
+  /// Returns the numeric value by removing thousand separators
+  double get numericValue => double.tryParse(replaceAll(RegExp(r'[^\d]'), '')) ?? 0;
 }

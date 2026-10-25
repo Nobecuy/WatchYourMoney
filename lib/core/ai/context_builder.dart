@@ -3,6 +3,7 @@ import 'package:watch_your_money/core/settings/settings_provider.dart';
 import 'package:watch_your_money/core/utils/currency_formatter.dart';
 import 'package:watch_your_money/domain/models/noir_settings_model.dart';
 import 'package:watch_your_money/domain/models/transaction_model.dart';
+import 'package:watch_your_money/features/analytics/saving_rate_provider.dart';
 import 'package:watch_your_money/features/dashboard/dashboard_provider.dart';
 
 /// Builds structured context for the LLM based on user query and available data.
@@ -25,6 +26,17 @@ class ContextBuilder {
     final summary = await _getFinancialSummary('month');
     context['financial_summary'] = summary;
     estimatedTokens += _estimateJsonTokens(summary);
+
+    // 1b. Add saving rate analysis (monthly)
+    if (estimatedTokens < settings.contextTokenBudget - 500) {
+      final savingRateNotifier = ref.read(savingRateNotifierProvider.notifier);
+      await savingRateNotifier.calculateAll();
+      final srContext = savingRateNotifier.getAiContext('month');
+      if (srContext != null) {
+        context['saving_rate_analysis'] = srContext;
+        estimatedTokens += _estimateJsonTokens(srContext);
+      }
+    }
 
     // 2. Add recent transactions (last 10)
     if (estimatedTokens < settings.contextTokenBudget - 1000) {

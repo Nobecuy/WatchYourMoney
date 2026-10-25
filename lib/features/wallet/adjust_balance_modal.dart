@@ -36,7 +36,15 @@ class _AdjustBalanceModalState extends ConsumerState<AdjustBalanceModal> {
     super.initState();
     _method = widget.initialMethod;
     final current = _currentBalance;
-    _amountController.text = current > 0 ? current.toInt().toString() : '';
+    final amountText = current > 0 ? current.toInt().toString() : '';
+    if (amountText.isNotEmpty) {
+      final formatted = ThousandsSeparatorInputFormatter().formatEditUpdate(
+        TextEditingValue.empty,
+        TextEditingValue(text: amountText),
+      );
+      _amountController.text = formatted.text;
+      _amountController.selection = formatted.selection;
+    }
     _noteController.text =
         'Penyesuaian saldo ${_method == 'card' ? 'Kartu / Kredit' : 'Tunai'}';
   }
@@ -56,18 +64,24 @@ class _AdjustBalanceModalState extends ConsumerState<AdjustBalanceModal> {
     setState(() {
       _method = newMethod;
       final current = _currentBalance;
-      _amountController.text = current > 0 ? current.toInt().toString() : '';
+      final amountText = current > 0 ? current.toInt().toString() : '';
+      if (amountText.isNotEmpty) {
+        final formatted = ThousandsSeparatorInputFormatter().formatEditUpdate(
+          TextEditingValue.empty,
+          TextEditingValue(text: amountText),
+        );
+        _amountController.text = formatted.text;
+        _amountController.selection = formatted.selection;
+      } else {
+        _amountController.text = '';
+      }
       _noteController.text =
           'Penyesuaian saldo ${_method == 'card' ? 'Kartu / Kredit' : 'Tunai'}';
     });
   }
 
   double _parseTargetAmount() {
-    final raw = _amountController.text
-        .replaceAll('.', '')
-        .replaceAll(',', '')
-        .trim();
-    return double.tryParse(raw) ?? 0.0;
+    return _amountController.text.numericValue;
   }
 
   Future<void> _saveAdjustment() async {
@@ -454,6 +468,9 @@ class _AdjustBalanceModalState extends ConsumerState<AdjustBalanceModal> {
                             keyboardType: TextInputType.number,
                             autofocus: true,
                             onChanged: (_) => setState(() {}),
+                            inputFormatters: [
+                              ThousandsSeparatorInputFormatter(),
+                            ],
                             style: const TextStyle(
                               color: AppColors.textPrimary,
                               fontSize: 26,
@@ -633,7 +650,17 @@ class _AdjustBalanceModalState extends ConsumerState<AdjustBalanceModal> {
       child: GestureDetector(
         onTap: () {
           setState(() {
-            _amountController.text = value.toInt().toString();
+            final amountText = value.toInt().toString();
+            if (amountText.isNotEmpty) {
+              final formatted = ThousandsSeparatorInputFormatter().formatEditUpdate(
+                TextEditingValue.empty,
+                TextEditingValue(text: amountText),
+              );
+              _amountController.text = formatted.text;
+              _amountController.selection = formatted.selection;
+            } else {
+              _amountController.text = '';
+            }
           });
         },
         child: Container(

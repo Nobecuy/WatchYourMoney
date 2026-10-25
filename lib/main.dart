@@ -6,13 +6,15 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:watch_your_money/core/settings/settings_provider.dart';
 import 'package:watch_your_money/core/theme/app_theme.dart';
 import 'package:watch_your_money/data/repositories/hive_chat_message_repository.dart';
-import 'package:watch_your_money/data/repositories/hive_noir_settings_repository.dart';
-import 'package:watch_your_money/data/repositories/hive_pending_action_repository.dart';
+import 'package:watch_your_money/data/repositories/hive_noir_settings_repository.dart'
+    show HiveNoirSettingsRepository;
+import 'package:watch_your_money/data/repositories/hive_pending_action_repository.dart'
+    show HivePendingActionRepository;
 import 'package:watch_your_money/domain/models/chat_message_model.dart';
 import 'package:watch_your_money/domain/models/noir_settings_model.dart';
 import 'package:watch_your_money/domain/models/pending_action_model.dart';
 import 'package:watch_your_money/domain/models/transaction_model.dart';
-import 'package:watch_your_money/features/main_screen.dart';
+import 'package:watch_your_money/features/auth/auth_wrapper.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -41,14 +43,28 @@ void main() async {
   final noirSettingsRepo = HiveNoirSettingsRepository();
   await noirSettingsRepo.init();
 
-  // 4. Inisialisasi Supabase untuk Authenticated Mode
-  await Supabase.initialize(
-    url: 'https://ddsjgwsgwpfsdbyoslsk.supabase.co',
-    publishableKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRkc2pnd3Nnd3Bmc2RieW9zbHNrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTIwNTY1MzMsImV4cCI6MjEwNzYzMjUzM30.RZHzq_q3k2p6SuvWegZZNWPVGYuOcMXwEJQH0AxNKv0',
-  );
+  // 4. Inisialisasi Supabase untuk Authenticated Mode (dengan offline handling)
+  await _initializeSupabase();
 
   // 5. Jalankan aplikasi
   runApp(const ProviderScope(child: MyApp()));
+}
+
+/// Initialize Supabase with proper error handling and timeout.
+/// If initialization fails (offline, network error, etc.), the app will still
+/// launch and allow users to access local data in guest/offline mode.
+Future<void> _initializeSupabase() async {
+  try {
+    await Supabase.initialize(
+      url: 'https://ddsjgwsgwpfsdbyoslsk.supabase.co',
+      publishableKey:
+          'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRkc2pnd3Nnd3Bmc2RieW9zbHNrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTIwNTY1MzMsImV4cCI6MjEwNzYzMjUzM30.RZHzq_q3k2p6SuvWegZZNWPVGYuOcMXwEJQH0AxNKv0',
+    ).timeout(const Duration(seconds: 10));
+  } catch (e) {
+    // Supabase initialization failed (likely offline).
+    // App will continue in offline mode using local Hive data.
+    debugPrint('Supabase initialization failed (offline mode): $e');
+  }
 }
 
 class MyApp extends ConsumerWidget {
@@ -73,7 +89,7 @@ class MyApp extends ConsumerWidget {
         GlobalWidgetsLocalizations.delegate,
         GlobalCupertinoLocalizations.delegate,
       ],
-      home: const MainScreen(),
+      home: const AuthWrapper(),
     );
   }
 }

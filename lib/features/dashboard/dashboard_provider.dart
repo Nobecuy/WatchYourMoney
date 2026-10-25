@@ -14,14 +14,19 @@ import 'package:watch_your_money/domain/repositories/pending_action_repository.d
 import 'package:watch_your_money/domain/repositories/transaction_repository.dart';
 import 'package:watch_your_money/features/auth/auth_provider.dart';
 
-/// Provider repository — memilih Hive (guest) atau Supabase (authenticated)
+/// Provider repository — memilih Hive (guest/offline) atau Supabase (authenticated online)
 final transactionRepositoryProvider = Provider<TransactionRepository>((ref) {
   final authState = ref.watch(authProvider);
-  if (authState.isGuest) {
-    // Guest: scoped to 'transactions_guest' box
-    return HiveTransactionRepository();
+
+  // If guest mode or offline mode, use local Hive storage
+  if (authState.isGuest || authState.isOfflineMode) {
+    // For offline mode, if we have a user ID, use their local box
+    // For guest, use the guest box
+    final userId = authState.isOfflineMode ? authState.user?.id : null;
+    return HiveTransactionRepository(userId: userId);
   }
-  // Logged-in: always try Supabase first (dual-write with per-user Hive cache)
+
+  // Logged-in and online: use Supabase with dual-write to local cache
   return SupabaseTransactionRepository(Supabase.instance.client);
 });
 
@@ -39,9 +44,7 @@ final chatMessageRepositoryProvider = Provider<ChatMessageRepository>((ref) {
 });
 
 /// Pending action repository provider
-final pendingActionRepositoryProvider = Provider<PendingActionRepository>((
-  ref,
-) {
+final pendingActionRepositoryProvider = Provider<PendingActionRepository>((ref) {
   return HivePendingActionRepository();
 });
 

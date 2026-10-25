@@ -6,6 +6,7 @@ import 'package:watch_your_money/domain/models/transaction_model.dart';
 import 'package:watch_your_money/domain/models/pending_action_model.dart';
 import 'package:watch_your_money/domain/repositories/transaction_repository.dart';
 import 'package:watch_your_money/domain/repositories/pending_action_repository.dart';
+import 'package:watch_your_money/features/analytics/saving_rate_provider.dart';
 import 'package:watch_your_money/features/dashboard/dashboard_provider.dart';
 
 /// Tool handlers execute the actual finance operations.
@@ -369,6 +370,27 @@ class ToolHandlers {
       },
       'message': 'Perubahan siap dikonfirmasi. Tekan "Konfirmasi" untuk menyimpan, "Batal" untuk membatalkan.',
     };
+  }
+
+  /// Get saving rate analysis with financial health diagnosis.
+  Future<Map<String, dynamic>> handleGetSavingRateAnalysis(String period) async {
+    final notifier = ref.read(savingRateNotifierProvider.notifier);
+    await notifier.calculateAll();
+
+    // Read state from provider instead of accessing notifier.state directly
+    final state = ref.read(savingRateNotifierProvider);
+    final analysis = switch (period) {
+      'week' => state.weeklyAnalysis,
+      'month' => state.monthlyAnalysis,
+      'all' => state.allTimeAnalysis,
+      _ => state.monthlyAnalysis,
+    };
+
+    if (analysis == null) {
+      return {'error': 'Tidak ada data transaksi untuk periode ini'};
+    }
+
+    return analysis.toAiContext();
   }
 
   /// Confirm a transaction update.

@@ -64,7 +64,13 @@ class _AddTransactionModalState extends ConsumerState<AddTransactionModal> {
     if (editTx != null) {
       _type = editTx.type;
       _paymentMethod = editTx.paymentMethod;
-      _amountController.text = editTx.amount.toInt().toString();
+      final amountText = editTx.amount.toInt().toString();
+      final formatted = ThousandsSeparatorInputFormatter().formatEditUpdate(
+        TextEditingValue.empty,
+        TextEditingValue(text: amountText),
+      );
+      _amountController.text = formatted.text;
+      _amountController.selection = formatted.selection;
       _noteController.text = editTx.note;
       _selectedDate = editTx.date;
       _selectedCategory = editTx.categoryId;
@@ -111,10 +117,16 @@ class _AddTransactionModalState extends ConsumerState<AddTransactionModal> {
   }
 
   void _quickAddAmount(double add) {
-    final current =
-        double.tryParse(_amountController.text.replaceAll('.', '')) ?? 0;
+    final current = _amountController.text.numericValue;
     final updated = current + add;
     _amountController.text = updated.toInt().toString();
+    // Apply formatter manually since we're setting text programmatically
+    final formatted = ThousandsSeparatorInputFormatter().formatEditUpdate(
+      TextEditingValue.empty,
+      TextEditingValue(text: updated.toInt().toString()),
+    );
+    _amountController.text = formatted.text;
+    _amountController.selection = formatted.selection;
   }
 
   Future<void> _pickDate() async {
@@ -278,10 +290,9 @@ class _AddTransactionModalState extends ConsumerState<AddTransactionModal> {
 
   Future<void> _saveTransaction() async {
     final t = AppTranslations.of(ref.read(appSettingsProvider).languageCode);
-    final rawText = _amountController.text.replaceAll('.', '').trim();
-    final amount = double.tryParse(rawText);
+    final amount = _amountController.text.numericValue;
 
-    if (amount == null || amount <= 0) {
+    if (amount <= 0) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(t.enterValidAmount),
@@ -583,6 +594,9 @@ class _AddTransactionModalState extends ConsumerState<AddTransactionModal> {
                             controller: _amountController,
                             keyboardType: TextInputType.number,
                             autofocus: true,
+                            inputFormatters: [
+                              ThousandsSeparatorInputFormatter(),
+                            ],
                             style: const TextStyle(
                               color: AppColors.textPrimary,
                               fontSize: 26,

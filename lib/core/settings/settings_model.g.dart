@@ -19,8 +19,8 @@ class SettingsDataAdapter extends TypeAdapter<SettingsData> {
     return SettingsData(
       languageCode: fields[0] as String,
       currencyCode: fields[1] as String,
-      useOllama: fields[2] as bool? ?? false,
-      ollamaBaseUrl: fields[3] as String? ?? 'http://10.0.2.2:11434',
+      useOllama: fields[2] as bool,
+      ollamaBaseUrl: fields[3] as String,
     );
   }
 

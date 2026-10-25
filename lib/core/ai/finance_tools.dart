@@ -72,6 +72,18 @@ class FinanceToolSchemas {
       },
       'required': ['transaction_id'],
     },
+    'get_saving_rate_analysis': {
+      'type': 'object',
+      'properties': {
+        'period': {
+          'type': 'string',
+          'enum': ['week', 'month', 'all'],
+          'description': 'Time period for saving rate analysis',
+          'default': 'month',
+        },
+      },
+      'required': ['period'],
+    },
     'confirm_transaction_update': {
       'type': 'object',
       'properties': {
@@ -431,6 +443,25 @@ class FinanceToolDefinitions {
               },
             },
             'required': ['idempotency_key'],
+          },
+        ),
+      ),
+      OllamaTool(
+        type: 'function',
+        function: OllamaToolFunction(
+          name: 'get_saving_rate_analysis',
+          description: 'Get saving rate analysis with financial health diagnosis and recommendations',
+          parameters: {
+            'type': 'object',
+            'properties': {
+              'period': {
+                'type': 'string',
+                'enum': ['week', 'month', 'all'],
+                'description': 'Time period for analysis (default: month)',
+                'default': 'month',
+              },
+            },
+            'required': ['period'],
           },
         ),
       ),

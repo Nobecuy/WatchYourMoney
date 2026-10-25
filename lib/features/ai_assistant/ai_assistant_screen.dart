@@ -38,6 +38,7 @@ class _AIAssistantScreenState extends ConsumerState<AIAssistantScreen>
     ('Cek Anggaran', AnalysisType.budgetIntelligence),
     ('Pola Transaksi', AnalysisType.transactionInsights),
     ('Kesehatan Keuangan', AnalysisType.financialHealthCheck),
+    ('Hitung Saving Rate', AnalysisType.savingRate),
   ];
 
   @override
@@ -149,6 +150,7 @@ class _AIAssistantScreenState extends ConsumerState<AIAssistantScreen>
     }
   }
 
+  /// Sends a predefined prompt to AI to trigger saving rate analysis via tool.
   void _sendViaOllama(String text) {
     final noirSettingsValue = ref.read(noirSettingsProvider);
     noirSettingsValue.whenData((noirSettings) {
@@ -479,7 +481,7 @@ class _AIAssistantScreenState extends ConsumerState<AIAssistantScreen>
                       style: const TextStyle(
                         color: AppColors.textSecondary,
                         fontSize: 12,
-                        fontWeight: FontWeight.w500,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
                   ),
