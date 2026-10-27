@@ -9,8 +9,11 @@ import 'package:watch_your_money/core/settings/settings_provider.dart';
 import 'package:watch_your_money/core/i18n/app_translations.dart';
 import 'package:watch_your_money/core/theme/app_colors.dart';
 import 'package:watch_your_money/core/theme/neumorphic_container.dart';
+import 'package:watch_your_money/core/transitions/page_transitions.dart';
 import 'package:watch_your_money/core/updates/update_helper.dart';
 import 'package:watch_your_money/core/utils/currency_formatter.dart';
+import 'package:watch_your_money/core/utils/custom_dialog.dart';
+import 'package:watch_your_money/core/utils/dynamic_island_alert.dart';
 import 'package:watch_your_money/features/auth/auth_provider.dart';
 import 'package:watch_your_money/features/auth/auth_screen.dart';
 import 'package:watch_your_money/features/dashboard/dashboard_provider.dart';
@@ -32,67 +35,22 @@ class ProfileScreen extends ConsumerStatefulWidget {
 class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   Future<void> _logout(BuildContext context) async {
     final t = AppTranslations.of(ref.read(appSettingsProvider).languageCode);
-    final shouldLogout = await showDialog<bool>(
+    final shouldLogout = await showCustomConfirm(
       context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: AppColors.surfaceContainer,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
-          side: const BorderSide(color: Color(0x1AFFFFFF), width: 1),
-        ),
-        title: Row(
-          children: [
-            const Icon(
-              Icons.logout_rounded,
-              color: AppColors.negativeLight,
-              size: 22,
-            ),
-            const SizedBox(width: 10),
-            Text(
-              t.logoutConfirm,
-              style: const TextStyle(
-                color: AppColors.textPrimary,
-                fontSize: 18,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ],
-        ),
-        content: Text(
-          t.logoutMessage,
-          style: const TextStyle(color: AppColors.textSecondary, fontSize: 13),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(false),
-            child: Text(
-              t.cancel,
-              style: const TextStyle(color: AppColors.textMuted),
-            ),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.negative,
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10),
-              ),
-            ),
-            onPressed: () => Navigator.of(ctx).pop(true),
-            child: Text(t.logout),
-          ),
-        ],
-      ),
+      title: t.logoutConfirm,
+      message: t.logoutMessage,
+      confirmText: t.logout,
+      cancelText: t.cancel,
+      isDestructive: true,
+      icon: Icons.logout_rounded,
+      iconColor: AppColors.negativeLight,
     );
 
     if (shouldLogout == true && context.mounted) {
       await Supabase.instance.client.auth.signOut();
       ref.read(authProvider.notifier).setLoggedOut();
       if (context.mounted) {
-        Navigator.of(context).pushAndRemoveUntil(
-          MaterialPageRoute(builder: (_) => const AuthScreen()),
-          (route) => false,
-        );
+        context.pushAndRemoveUntil(const AuthScreen());
       }
     }
   }
@@ -100,23 +58,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   void _copyUserId(String? id) {
     if (id == null || id.isEmpty) return;
     Clipboard.setData(ClipboardData(text: id));
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: const Row(
-          children: [
-            Icon(
-              Icons.check_circle_outline_rounded,
-              color: AppColors.positive,
-              size: 18,
-            ),
-            SizedBox(width: 8),
-            Text('User ID berhasil disalin ke clipboard!'),
-          ],
-        ),
-        backgroundColor: AppColors.surfaceContainerHigh,
-        duration: const Duration(seconds: 2),
-      ),
-    );
+    context.showDynamicIslandSuccess('User ID berhasil disalin ke clipboard!');
   }
 
   @override
@@ -569,6 +511,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                             onTap: () => UpdateHelper.checkForUpdates(
                               context,
                               showNoUpdateDialog: true,
+                              t: t,
                             ),
                             trailing: const Icon(
                               Icons.arrow_forward_ios_rounded,
@@ -589,12 +532,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                             iconColor: const Color(0xFF818CF8),
                             title: t.aiAssistant,
                             subtitle: t.aiSubtitle,
-                            onTap: () => Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => const AIAssistantScreen(),
-                              ),
-                            ),
+                            onTap: () => context.pushModalPage(const AIAssistantScreen()),
                             trailing: const Icon(
                               Icons.arrow_forward_ios_rounded,
                               color: AppColors.textMuted,
@@ -607,12 +545,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                             iconColor: const Color(0xFF34D399),
                             title: t.feedback,
                             subtitle: t.feedbackSubtitle,
-                            onTap: () => Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => const FeedbackScreen(),
-                              ),
-                            ),
+                            onTap: () => context.pushModalPage(const FeedbackScreen()),
                             trailing: const Icon(
                               Icons.arrow_forward_ios_rounded,
                               color: AppColors.textMuted,
@@ -650,13 +583,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                               ),
                               elevation: 0,
                             ),
-                            onPressed: () {
-                              Navigator.of(context).pushReplacement(
-                                MaterialPageRoute(
-                                  builder: (_) => const AuthScreen(),
-                                ),
-                              );
-                            },
+                            onPressed: () => context.replacePage(const AuthScreen()),
                             icon: const Icon(Icons.login_rounded, size: 18),
                             label: Text(
                               t.connectGoogle,
@@ -794,11 +721,14 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     required String currentValue,
     required void Function(String) onSelect,
   }) {
-    showModalBottomSheet(
-      context: context,
+    context.showAnimatedBottomSheet(
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
-      builder: (_) => _PickerSheet(
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      barrierColor: Colors.black.withValues(alpha: 0.65),
+      builder: (context) => _PickerSheet(
         title: title,
         subtitle: subtitle,
         icon: icon,
@@ -808,33 +738,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         onSelect: (value) {
           Navigator.pop(context);
           onSelect(value);
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Row(
-                children: [
-                  Icon(
-                    Icons.check_circle_rounded,
-                    color: AppColors.positive,
-                    size: 16,
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    options.firstWhere((o) => o.value == value).label,
-                    style: const TextStyle(color: AppColors.textPrimary),
-                  ),
-                  const Text(
-                    ' berhasil dipilih',
-                    style: TextStyle(color: AppColors.textSecondary),
-                  ),
-                ],
-              ),
-              backgroundColor: AppColors.surfaceContainerHigh,
-              duration: const Duration(seconds: 2),
-              behavior: SnackBarBehavior.floating,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-            ),
+          context.showDynamicIslandSuccess(
+            '${options.firstWhere((o) => o.value == value).label} berhasil dipilih',
           );
         },
       ),

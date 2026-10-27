@@ -4,6 +4,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:watch_your_money/core/theme/app_colors.dart';
 import 'package:watch_your_money/core/theme/neumorphic_container.dart';
+import 'package:watch_your_money/core/utils/dynamic_island_alert.dart';
 import 'package:watch_your_money/features/auth/auth_provider.dart';
 import 'package:watch_your_money/features/main_screen.dart';
 
@@ -59,15 +60,12 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
           );
           return;
         }
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-              'Akun dibuat! Silakan cek Gmail Anda untuk konfirmasi, atau matikan "Confirm email" di Supabase Dashboard.',
-            ),
-            backgroundColor: AppColors.surfaceContainerHigh,
-            duration: Duration(seconds: 4),
-          ),
-        );
+        if (mounted) {
+          context.showDynamicIslandInfo(
+            'Akun dibuat! Silakan cek Gmail Anda untuk konfirmasi, atau matikan "Confirm email" di Supabase Dashboard.',
+            duration: const Duration(seconds: 4),
+          );
+        }
         setState(() => _isLoginMode = true);
       }
     } catch (e) {
@@ -80,13 +78,9 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
           errorMsg = e.message;
         }
       }
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(errorMsg),
-          backgroundColor: AppColors.surfaceContainerHigh,
-          duration: const Duration(seconds: 5),
-        ),
-      );
+      if (mounted) {
+        context.showDynamicIslandError(errorMsg);
+      }
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }

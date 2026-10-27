@@ -50,7 +50,7 @@ class SupabaseTransactionRepository implements TransactionRepository {
     if (userId == null) return;
 
     try {
-      final json = transaction.toJson();
+      final json = transaction.toSupabaseJson();
       json['user_id'] = userId;
       await _client.from('transactions').insert(json);
     } catch (_) {
@@ -66,7 +66,7 @@ class SupabaseTransactionRepository implements TransactionRepository {
     if (userId == null) return;
 
     try {
-      final json = transaction.toJson();
+      final json = transaction.toSupabaseJson();
       json['user_id'] = userId;
       await _client.from('transactions').update(json).eq('id', transaction.id);
     } catch (_) {}

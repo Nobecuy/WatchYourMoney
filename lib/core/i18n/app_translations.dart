@@ -164,6 +164,40 @@ class AppTranslations {
       _id ? 'Bantu kami tingkatkan aplikasi' : 'Help us improve the app';
   String get appVersionLabel => 'watchh v1.0.0 - Dark Onyx Edition';
 
+  // ── Update Dialog ───────────────────────────────────────────────
+  String get updateAvailable => _id ? 'Update Telah Tersedia' : 'Update Available';
+  String get newVersion => _id ? 'Versi baru' : 'New Version';
+  String get releaseNotes => _id ? 'Catatan Rilis' : 'Release Notes';
+  String get downloading => _id ? 'Mengunduh...' : 'Downloading...';
+  String get installing => _id ? 'Memasang update...' : 'Installing update...';
+  String get downloadFailed => _id ? 'Gagal mengunduh update' : 'Failed to download update';
+  String get installFailed => _id ? 'Gagal memasang update' : 'Failed to install update';
+  String get later => _id ? 'Nanti' : 'Later';
+  String get downloadAndInstall => _id ? 'Unduh & Pasang' : 'Download & Install';
+  String get updateInBrowser => _id ? 'Update di Browser' : 'Update in Browser';
+  String get retry => _id ? 'Coba Lagi' : 'Retry';
+  String get skipVersion => _id ? 'Lewati Versi Ini' : 'Skip This Version';
+  String get alreadyLatest => _id ? 'Sudah Terkini' : 'Already Up to Date';
+  String get usingLatestVersion =>
+      _id ? 'Kamu sudah menggunakan versi terbaru' : 'You are using the latest version';
+
+  // ── Wallet / Adjust Balance ───────────────────────────────────
+  String get adjustBalanceCategory => _id ? 'Penyesuaian Saldo' : 'Balance Adjustment';
+  String get correctCardBalance => _id ? 'Koreksi saldo riil kartu kredit/debit' : 'Correct actual card balance';
+  String get correctCashBalance => _id ? 'Koreksi saldo riil kas tunai' : 'Correct actual cash balance';
+  String get adjustmentNoteHint => _id ? 'Keterangan penyesuaian...' : 'Adjustment note...';
+  String get incomeAdjustment => _id ? 'Pemasukan penyesuaian' : 'Income adjustment';
+  String get expenseAdjustment => _id ? 'Pengeluaran penyesuaian' : 'Expense adjustment';
+  String get balanceUpdated => _id ? 'Saldo berhasil diubah' : 'Balance updated successfully';
+  String get balanceSameAsCurrent =>
+      _id ? 'Nominal saldo baru sama dengan saldo saat ini.' : 'New balance is the same as current balance.';
+  String get balanceUpdatedCard =>
+      _id ? 'Saldo Kartu / Kredit berhasil diubah ke' : 'Card / Credit balance updated to';
+  String get balanceUpdatedCash =>
+      _id ? 'Saldo Tunai berhasil diubah ke' : 'Cash balance updated to';
+  String get failedToUpdateBalance =>
+      _id ? 'Gagal memperbarui saldo' : 'Failed to update balance';
+
   // ── Dashboard extras ──────────────────────────────────────────────
   String get editSaldo => _id ? 'Edit Saldo' : 'Edit Balance';
   String get pickWallet => _id
@@ -193,6 +227,7 @@ class AppTranslations {
   String get analyticsSubtitle =>
       _id ? 'Pantau arus kas kamu' : 'Monitor your cash flow';
   String get chartStats => _id ? 'GRAFIK STATISTIK' : 'CHART STATISTICS';
+  String get weekShort => _id ? 'Mgg' : 'Wk';
 
   // ── History ──────────────────────────────────────────────────────
   String get transactionsTitle => _id ? 'Transaksi' : 'Transactions';

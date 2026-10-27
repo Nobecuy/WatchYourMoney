@@ -5,6 +5,7 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:intl/intl.dart';
 import 'package:watch_your_money/core/theme/app_colors.dart';
 import 'package:watch_your_money/core/theme/neumorphic_container.dart';
+import 'package:watch_your_money/core/transitions/page_transitions.dart';
 import 'package:watch_your_money/core/utils/currency_formatter.dart';
 import 'package:watch_your_money/domain/models/transaction_model.dart';
 import 'package:watch_your_money/features/dashboard/dashboard_provider.dart';
@@ -491,14 +492,17 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   }
 
   void _openModal(String type, {String? paymentMethod}) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (_) => AddTransactionModal(
+    context.showAnimatedBottomSheet(
+      builder: (context) => AddTransactionModal(
         initialType: type,
         initialPaymentMethod: paymentMethod,
       ),
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      barrierColor: Colors.black.withValues(alpha: 0.65),
     );
   }
 
@@ -574,15 +578,18 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             .fold(0.0, (s, t) => s + t.amount);
 
     void openAdjust(String method) {
-      showModalBottomSheet(
-        context: context,
-        isScrollControlled: true,
-        backgroundColor: Colors.transparent,
-        builder: (_) => AdjustBalanceModal(
+      context.showAnimatedBottomSheet(
+        builder: (context) => AdjustBalanceModal(
           initialMethod: method,
           currentCardBalance: cardBalance,
           currentCashBalance: cashBalance,
         ),
+        isScrollControlled: true,
+        backgroundColor: Colors.transparent,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+        ),
+        barrierColor: Colors.black.withValues(alpha: 0.65),
       );
     }
 
@@ -613,15 +620,14 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                   // Edit balance dropdown button
                   GestureDetector(
                     onTap: () {
-                      showModalBottomSheet(
-                        context: context,
+                      context.showAnimatedBottomSheet(
                         backgroundColor: AppColors.surfaceContainer,
                         shape: const RoundedRectangleBorder(
                           borderRadius: BorderRadius.vertical(
                             top: Radius.circular(20),
                           ),
                         ),
-                        builder: (_) => SafeArea(
+                        builder: (context) => SafeArea(
                           top: false,
                           child: Padding(
                             padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),

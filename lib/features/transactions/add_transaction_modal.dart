@@ -8,6 +8,8 @@ import 'package:watch_your_money/core/settings/settings_provider.dart';
 import 'package:watch_your_money/core/theme/app_colors.dart';
 import 'package:watch_your_money/core/theme/neumorphic_container.dart';
 import 'package:watch_your_money/core/utils/currency_formatter.dart';
+import 'package:watch_your_money/core/utils/custom_dialog.dart';
+import 'package:watch_your_money/core/utils/dynamic_island_alert.dart';
 import 'package:watch_your_money/domain/models/transaction_model.dart';
 import 'package:watch_your_money/features/dashboard/dashboard_provider.dart';
 
@@ -156,118 +158,49 @@ class _AddTransactionModalState extends ConsumerState<AddTransactionModal> {
 
   void _showAddCustomCategoryDialog() {
     final t = AppTranslations.of(ref.read(appSettingsProvider).languageCode);
-    final textController = TextEditingController();
-    showDialog(
+    showCustomInputDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: AppColors.surfaceContainerHigh,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Text(
-          t.addCategory,
-          style: const TextStyle(
-            color: AppColors.textPrimary,
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        content: TextField(
-          controller: textController,
-          autofocus: true,
-          style: const TextStyle(color: AppColors.textPrimary),
-          decoration: InputDecoration(
-            hintText: t.categoryName,
-            hintStyle: const TextStyle(color: AppColors.textMuted),
-            filled: true,
-            fillColor: AppColors.surfaceDim,
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide.none,
-            ),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: Text(
-              t.cancel,
-              style: const TextStyle(color: AppColors.textSecondary),
-            ),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.accentWhite,
-              foregroundColor: AppColors.accentBlack,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10),
-              ),
-            ),
-            onPressed: () {
-              final cat = textController.text.trim();
-              if (cat.isNotEmpty) {
-                setState(() {
-                  if (_type == 'expense') {
-                    _expenseCategories.insert(0, {
-                      'name': cat,
-                      'icon': Icons.label_outline_rounded,
-                    });
-                  } else {
-                    _incomeCategories.insert(0, {
-                      'name': cat,
-                      'icon': Icons.label_outline_rounded,
-                    });
-                  }
-                  _selectedCategory = cat;
-                });
-                Navigator.pop(ctx);
-              }
-            },
-            child: Text(
-              t.save,
-              style: const TextStyle(fontWeight: FontWeight.bold),
-            ),
-          ),
-        ],
-      ),
-    );
+      title: t.addCategory,
+      hintText: t.categoryName,
+      confirmText: t.save,
+      cancelText: t.cancel,
+      validator: (value) {
+        if (value == null || value.trim().isEmpty) {
+          return 'Nama kategori tidak boleh kosong';
+        }
+        return null;
+      },
+    ).then((cat) {
+      if (cat != null && cat.isNotEmpty && mounted) {
+        setState(() {
+          if (_type == 'expense') {
+            _expenseCategories.insert(0, {
+              'name': cat,
+              'icon': Icons.label_outline_rounded,
+            });
+          } else {
+            _incomeCategories.insert(0, {
+              'name': cat,
+              'icon': Icons.label_outline_rounded,
+            });
+          }
+          _selectedCategory = cat;
+        });
+      }
+    });
   }
 
   Future<void> _deleteThisTransaction() async {
     final t = AppTranslations.of(ref.read(appSettingsProvider).languageCode);
-    final confirmed = await showDialog<bool>(
+    final confirmed = await showCustomConfirm(
       context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: AppColors.surfaceContainerHigh,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Text(
-          t.deleteTransaction,
-          style: const TextStyle(
-            color: AppColors.textPrimary,
-            fontWeight: FontWeight.w600,
-            fontSize: 16,
-          ),
-        ),
-        content: Text(
-          t.confirmDelete,
-          style: const TextStyle(color: AppColors.textMuted, fontSize: 13),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: Text(
-              t.cancel,
-              style: const TextStyle(color: AppColors.textSecondary),
-            ),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.negative,
-              foregroundColor: Colors.white,
-            ),
-            onPressed: () => Navigator.pop(ctx, true),
-            child: Text(t.delete),
-          ),
-        ],
-      ),
+      title: t.deleteTransaction,
+      message: t.confirmDelete,
+      confirmText: t.delete,
+      cancelText: t.cancel,
+      isDestructive: true,
+      icon: Icons.delete_outline,
+      iconColor: AppColors.negativeLight,
     );
 
     if (confirmed == true && mounted) {
@@ -278,12 +211,7 @@ class _AddTransactionModalState extends ConsumerState<AddTransactionModal> {
       ref.invalidate(transactionsProvider);
       if (mounted) {
         Navigator.pop(context);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(t.txDeleted),
-            backgroundColor: AppColors.surfaceContainerHigh,
-          ),
-        );
+        context.showDynamicIslandSuccess(t.txDeleted);
       }
     }
   }
@@ -293,12 +221,7 @@ class _AddTransactionModalState extends ConsumerState<AddTransactionModal> {
     final amount = _amountController.text.numericValue;
 
     if (amount <= 0) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(t.enterValidAmount),
-          backgroundColor: AppColors.surfaceContainerHigh,
-        ),
-      );
+      context.showDynamicIslandError(t.enterValidAmount);
       return;
     }
 
@@ -306,6 +229,33 @@ class _AddTransactionModalState extends ConsumerState<AddTransactionModal> {
 
     try {
       final isEdit = widget.transactionToEdit != null;
+
+      // Calculate balance before/after for new transactions (not edits)
+      double balanceBefore = 0.0;
+      double balanceAfter = 0.0;
+
+      if (!isEdit) {
+        // Fetch current transactions to calculate balance
+        final transactions = await ref.read(transactionRepositoryProvider).getTransactions();
+        double income = 0;
+        double expense = 0;
+        for (final tx in transactions) {
+          if (tx.paymentMethod == _paymentMethod) {
+            if (tx.type == 'income') {
+              income += tx.amount;
+            } else {
+              expense += tx.amount;
+            }
+          }
+        }
+        balanceBefore = income - expense;
+        balanceAfter = _type == 'income' ? balanceBefore + amount : balanceBefore - amount;
+      } else {
+        // For edits, preserve existing balance info
+        balanceBefore = widget.transactionToEdit!.balanceBefore;
+        balanceAfter = widget.transactionToEdit!.balanceAfter;
+      }
+
       final tx = TransactionModel(
         id: isEdit ? widget.transactionToEdit!.id : const Uuid().v4(),
         amount: amount,
@@ -314,6 +264,8 @@ class _AddTransactionModalState extends ConsumerState<AddTransactionModal> {
         note: _noteController.text.trim(),
         date: _selectedDate,
         paymentMethod: _paymentMethod,
+        balanceBefore: balanceBefore,
+        balanceAfter: balanceAfter,
       );
 
       if (isEdit) {
@@ -326,22 +278,12 @@ class _AddTransactionModalState extends ConsumerState<AddTransactionModal> {
 
       if (mounted) {
         Navigator.pop(context);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(isEdit ? t.txUpdated : t.txSaved),
-            backgroundColor: AppColors.surfaceContainerHigh,
-          ),
-        );
+        context.showDynamicIslandSuccess(isEdit ? t.txUpdated : t.txSaved);
       }
     } catch (e) {
       if (mounted) {
         setState(() => _isLoading = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Gagal menyimpan: $e'),
-            backgroundColor: AppColors.surfaceContainerHigh,
-          ),
-        );
+        context.showDynamicIslandError('Gagal menyimpan: $e');
       }
     }
   }

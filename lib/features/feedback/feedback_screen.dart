@@ -7,6 +7,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:watch_your_money/core/auth/developer_config.dart';
 import 'package:watch_your_money/core/theme/app_colors.dart';
 import 'package:watch_your_money/core/theme/neumorphic_container.dart';
+import 'package:watch_your_money/core/utils/dynamic_island_alert.dart';
 
 class FeedbackScreen extends ConsumerStatefulWidget {
   const FeedbackScreen({super.key});
@@ -37,12 +38,7 @@ class _FeedbackScreenState extends ConsumerState<FeedbackScreen> {
   Future<void> _sendFeedback() async {
     final message = _messageController.text.trim();
     if (message.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Pesan tidak boleh kosong.'),
-          backgroundColor: AppColors.surfaceContainerHigh,
-        ),
-      );
+      context.showDynamicIslandError('Pesan tidak boleh kosong.');
       return;
     }
 
@@ -89,36 +85,21 @@ class _FeedbackScreenState extends ConsumerState<FeedbackScreen> {
       }
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-              'Terima kasih! Saran & kritik kamu sangat berharga untuk pengembangan aplikasi ini.',
-            ),
-            backgroundColor: AppColors.surfaceContainerHigh,
-            duration: Duration(seconds: 4),
-          ),
+        context.showDynamicIslandSuccess(
+          'Terima kasih! Saran & kritik kamu sangat berharga untuk pengembangan aplikasi ini.',
+          duration: const Duration(seconds: 4),
         );
         _messageController.clear();
         _emailController.clear();
         if (!launched) {
           // mailto failed but Supabase or validation passed — still confirm
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Email client tidak tersedia. Feedback tetap tercatat di sistem.'),
-              backgroundColor: AppColors.surfaceContainerHigh,
-            ),
-          );
+          context.showDynamicIslandWarning('Email client tidak tersedia. Feedback tetap tercatat di sistem.');
         }
         Navigator.of(context).pop();
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Gagal mengirim feedback: $e'),
-            backgroundColor: AppColors.surfaceContainerHigh,
-          ),
-        );
+        context.showDynamicIslandError('Gagal mengirim feedback: $e');
       }
     } finally {
       if (mounted) setState(() => _isSending = false);

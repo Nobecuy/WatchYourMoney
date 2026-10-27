@@ -24,34 +24,57 @@ class RecentTransactionsList extends StatelessWidget {
       itemBuilder: (context, index) {
         final tx = transactions[index];
         final isIncome = tx.type == 'income';
+        final color = isIncome ? AppColors.positive : AppColors.negative;
+
+        // Build balance change text if available
+        final hasBalanceInfo = tx.balanceBefore != 0.0 || tx.balanceAfter != 0.0;
+        final balanceText = hasBalanceInfo
+            ? '${formatter.format(tx.balanceBefore)} → ${formatter.format(tx.balanceAfter)}'
+            : null;
+
         return NeumorphicContainer(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               borderRadius: 12,
-              child: Row(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Icon(
-                    isIncome
-                        ? Icons.arrow_downward
-                        : Icons.arrow_upward,
-                    color: isIncome
-                        ? Colors.green
-                        : Colors.redAccent,
+                  Row(
+                    children: [
+                      Icon(
+                        isIncome
+                            ? Icons.arrow_downward
+                            : Icons.arrow_upward,
+                        color: color,
+                        size: 18,
+                      ),
+                      const SizedBox(width: 15),
+                      Expanded(
+                        child: Text(
+                          tx.note,
+                          style: const TextStyle(color: AppColors.textColor),
+                        ),
+                      ),
+                      Text(
+                        formatter.format(tx.amount),
+                        style: TextStyle(
+                          color: color,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 14,
+                        ),
+                      ),
+                    ],
                   ),
-                  const SizedBox(width: 15),
-                  Expanded(
-                    child: Text(
-                      tx.note,
-                      style: const TextStyle(color: AppColors.textColor),
+                  if (balanceText != null) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      balanceText,
+                      style: TextStyle(
+                        color: AppColors.textMuted.withValues(alpha: 0.7),
+                        fontSize: 10,
+                        fontFamily: 'monospace',
+                      ),
                     ),
-                  ),
-                  Text(
-                    formatter.format(tx.amount),
-                    style: TextStyle(
-                      color: isIncome
-                          ? Colors.green
-                          : Colors.redAccent,
-                    ),
-                  ),
+                  ],
                 ],
               ),
             )

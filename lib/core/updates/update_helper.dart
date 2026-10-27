@@ -8,7 +8,9 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:watch_your_money/core/i18n/app_translations.dart';
 import 'package:watch_your_money/core/theme/app_colors.dart';
+import 'package:watch_your_money/core/utils/custom_dialog.dart';
 
 class UpdateHelper {
   UpdateHelper._();
@@ -24,10 +26,12 @@ class UpdateHelper {
 
   /// Check GitHub Releases for a newer version.
   /// Pass [showNoUpdateDialog] = true for manual check (from profile screen).
+  /// Pass [translations] for localized dialog text.
   static Future<void> checkForUpdates(
     BuildContext context, {
     bool showNoUpdateDialog = false,
     bool forceCheck = false,
+    required AppTranslations t,
   }) async {
     try {
       final packageInfo = await PackageInfo.fromPlatform();
@@ -88,9 +92,10 @@ class UpdateHelper {
           apkDownloadUrl,
           currentVersion,
           currentBuild,
+          t,
         );
       } else if (showNoUpdateDialog) {
-        _showNoUpdateDialog(context, currentVersion, currentBuild);
+        _showNoUpdateDialog(context, currentVersion, currentBuild, t);
         // Update last checked version on successful manual check
         await _saveLastCheckedVersion(currentVersion, currentBuild);
       }
@@ -145,17 +150,19 @@ class UpdateHelper {
     String? apkDownloadUrl,
     String currentVersion,
     int currentBuild,
+    AppTranslations t,
   ) {
-    showDialog<void>(
+    showCustomDialog<void>(
       context: context,
       barrierDismissible: false,
-      builder: (ctx) => _UpdateDialog(
+      child: _UpdateDialog(
         newVersion: newVersion,
         releaseUrl: releaseUrl,
         releaseNotes: releaseNotes,
         apkDownloadUrl: apkDownloadUrl,
         currentVersion: currentVersion,
         currentBuild: currentBuild,
+        t: t,
       ),
     );
   }
@@ -164,51 +171,15 @@ class UpdateHelper {
     BuildContext context,
     String currentVersion,
     int currentBuild,
+    AppTranslations t,
   ) {
-    showDialog<void>(
+    showCustomAlert(
       context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: AppColors.surfaceContainer,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
-          side: const BorderSide(color: Color(0x1AFFFFFF)),
-        ),
-        title: const Row(
-          children: [
-            Icon(
-              Icons.check_circle_rounded,
-              color: AppColors.positive,
-              size: 22,
-            ),
-            SizedBox(width: 10),
-            Text(
-              'Sudah Terkini',
-              style: TextStyle(
-                color: AppColors.textPrimary,
-                fontSize: 17,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ],
-        ),
-        content: Text(
-          'Kamu sudah menggunakan versi terbaru (v$currentVersion${currentBuild > 0 ? '+$currentBuild' : ''})',
-          style: const TextStyle(color: AppColors.textSecondary, fontSize: 13),
-        ),
-        actions: [
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.surfaceContainerHigh,
-              foregroundColor: AppColors.textPrimary,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10),
-              ),
-            ),
-            onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text('Oke'),
-          ),
-        ],
-      ),
+      title: t.alreadyLatest,
+      message: '${t.usingLatestVersion} (v$currentVersion${currentBuild > 0 ? '+$currentBuild' : ''})',
+      buttonText: t.later,
+      icon: Icons.check_circle_rounded,
+      iconColor: AppColors.positive,
     );
   }
 }
@@ -220,6 +191,7 @@ class _UpdateDialog extends StatefulWidget {
   final String? apkDownloadUrl;
   final String currentVersion;
   final int currentBuild;
+  final AppTranslations t;
 
   const _UpdateDialog({
     required this.newVersion,
@@ -228,6 +200,7 @@ class _UpdateDialog extends StatefulWidget {
     this.apkDownloadUrl,
     required this.currentVersion,
     required this.currentBuild,
+    required this.t,
   });
 
   @override
@@ -244,39 +217,43 @@ class _UpdateDialogState extends State<_UpdateDialog> {
   @override
   Widget build(BuildContext context) {
     final canAutoInstall = widget.apkDownloadUrl != null && !_isDownloading;
+    final t = widget.t;
 
-    return AlertDialog(
-      backgroundColor: AppColors.surfaceContainer,
-      shape: RoundedRectangleBorder(
+    return Container(
+      constraints: const BoxConstraints(maxWidth: 400),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceContainer,
         borderRadius: BorderRadius.circular(20),
-        side: const BorderSide(color: Color(0x1AFFFFFF)),
+        border: Border.all(color: const Color(0x1AFFFFFF)),
       ),
-      title: Row(
-        children: [
-          const Icon(
-            Icons.system_update_rounded,
-            color: Color(0xFF34D399),
-            size: 22,
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(
-              'Update Telah Tersedia',
-              style: const TextStyle(
-                color: AppColors.textPrimary,
-                fontSize: 17,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ),
-        ],
-      ),
-      content: Column(
+      padding: const EdgeInsets.all(24),
+      child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          Row(
+            children: [
+              const Icon(
+                Icons.system_update_rounded,
+                color: Color(0xFF34D399),
+                size: 22,
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  t.updateAvailable,
+                  style: const TextStyle(
+                    color: AppColors.textPrimary,
+                    fontSize: 17,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
           Text(
-            'Versi baru: v${widget.newVersion}',
+            '${t.newVersion}: v${widget.newVersion}',
             style: const TextStyle(
               color: AppColors.textSecondary,
               fontSize: 13,
@@ -302,7 +279,7 @@ class _UpdateDialogState extends State<_UpdateDialog> {
             ),
             const SizedBox(height: 8),
             Text(
-              'Mengunduh... ${(_downloadProgress * 100).toStringAsFixed(0)}%',
+              '${t.downloading} ${(_downloadProgress * 100).toStringAsFixed(0)}%',
               style: const TextStyle(color: AppColors.textMuted, fontSize: 11),
             ),
           ] else if (_isInstalling) ...[
@@ -354,100 +331,109 @@ class _UpdateDialogState extends State<_UpdateDialog> {
               ),
             ),
           ],
+          const SizedBox(height: 24),
+          Row(
+            children: [
+              Expanded(
+                child: TextButton(
+                  onPressed: _isDownloading || _isInstalling
+                      ? null
+                      : () => Navigator.of(context).pop(),
+                  child: Text(
+                    t.later,
+                    style: TextStyle(
+                      color: _isDownloading || _isInstalling
+                          ? AppColors.textMuted.withValues(alpha: 0.5)
+                          : AppColors.textMuted,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              if (canAutoInstall)
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF34D399),
+                    foregroundColor: Colors.black,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                  onPressed: _downloadAndInstallApk,
+                  child: Text(
+                    t.downloadAndInstall,
+                    style: const TextStyle(fontWeight: FontWeight.w700),
+                  ),
+                )
+              else if (widget.apkDownloadUrl == null)
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF34D399),
+                    foregroundColor: Colors.black,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                  onPressed: () async {
+                    Navigator.of(context).pop();
+                    if (widget.releaseUrl.isNotEmpty) {
+                      await launchUrl(
+                        Uri.parse(widget.releaseUrl),
+                        mode: LaunchMode.externalApplication,
+                      );
+                    }
+                  },
+                  child: Text(
+                    t.updateInBrowser,
+                    style: const TextStyle(fontWeight: FontWeight.w700),
+                  ),
+                )
+              else
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF34D399),
+                    foregroundColor: Colors.black,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                  onPressed: _retryDownload,
+                  child: Text(
+                    t.retry,
+                    style: const TextStyle(fontWeight: FontWeight.w700),
+                  ),
+                ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: TextButton(
+                  onPressed: _isDownloading || _isInstalling
+                      ? null
+                      : () async {
+                          final prefs = await SharedPreferences.getInstance();
+                          await prefs.setString(
+                            UpdateHelper._prefsKeySkipVersion,
+                            widget.currentVersion,
+                          );
+                          await prefs.setInt(
+                            UpdateHelper._prefsKeySkipBuild,
+                            widget.currentBuild,
+                          );
+                          if (context.mounted) Navigator.of(context).pop();
+                        },
+                  child: Text(
+                    t.skipVersion,
+                    style: TextStyle(
+                      color: _isDownloading || _isInstalling
+                          ? AppColors.textMuted.withValues(alpha: 0.5)
+                          : AppColors.textMuted,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
         ],
       ),
-      actions: [
-        TextButton(
-          onPressed: _isDownloading || _isInstalling
-              ? null
-              : () => Navigator.of(context).pop(),
-          child: Text(
-            'Nanti',
-            style: TextStyle(
-              color: _isDownloading || _isInstalling
-                  ? AppColors.textMuted.withValues(alpha: 0.5)
-                  : AppColors.textMuted,
-            ),
-          ),
-        ),
-        if (canAutoInstall)
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF34D399),
-              foregroundColor: Colors.black,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10),
-              ),
-            ),
-            onPressed: _downloadAndInstallApk,
-            child: const Text(
-              'Unduh & Pasang',
-              style: TextStyle(fontWeight: FontWeight.w700),
-            ),
-          )
-        else if (widget.apkDownloadUrl == null)
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF34D399),
-              foregroundColor: Colors.black,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10),
-              ),
-            ),
-            onPressed: () async {
-              Navigator.of(context).pop();
-              if (widget.releaseUrl.isNotEmpty) {
-                await launchUrl(
-                  Uri.parse(widget.releaseUrl),
-                  mode: LaunchMode.externalApplication,
-                );
-              }
-            },
-            child: const Text(
-              'Update di Browser',
-              style: TextStyle(fontWeight: FontWeight.w700),
-            ),
-          )
-        else
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF34D399),
-              foregroundColor: Colors.black,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10),
-              ),
-            ),
-            onPressed: _retryDownload,
-            child: const Text(
-              'Coba Lagi',
-              style: TextStyle(fontWeight: FontWeight.w700),
-            ),
-          ),
-        TextButton(
-          onPressed: _isDownloading || _isInstalling
-              ? null
-              : () async {
-                  final prefs = await SharedPreferences.getInstance();
-                  await prefs.setString(
-                    UpdateHelper._prefsKeySkipVersion,
-                    widget.currentVersion,
-                  );
-                  await prefs.setInt(
-                    UpdateHelper._prefsKeySkipBuild,
-                    widget.currentBuild,
-                  );
-                  if (context.mounted) Navigator.of(context).pop();
-                },
-          child: Text(
-            'Lewati Versi Ini',
-            style: TextStyle(
-              color: _isDownloading || _isInstalling
-                  ? AppColors.textMuted.withValues(alpha: 0.5)
-                  : AppColors.textMuted,
-            ),
-          ),
-        ),
-      ],
     );
   }
 
@@ -491,7 +477,7 @@ class _UpdateDialogState extends State<_UpdateDialog> {
       if (result.type != ResultType.done) {
         setState(() {
           _isInstalling = false;
-          _errorMessage = 'Gagal memasang update: ${result.message}';
+          _errorMessage = '${widget.t.installFailed}: ${result.message}';
         });
         return;
       }
@@ -507,7 +493,7 @@ class _UpdateDialogState extends State<_UpdateDialog> {
       setState(() {
         _isDownloading = false;
         _isInstalling = false;
-        _errorMessage = 'Gagal mengunduh update: $e';
+        _errorMessage = '${widget.t.downloadFailed}: $e';
       });
     }
   }

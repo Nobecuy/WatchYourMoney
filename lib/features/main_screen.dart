@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:watch_your_money/core/i18n/app_translations.dart';
 import 'package:watch_your_money/core/settings/settings_provider.dart';
 import 'package:watch_your_money/core/theme/app_colors.dart';
+import 'package:watch_your_money/core/transitions/page_transitions.dart';
 import 'package:watch_your_money/core/updates/update_helper.dart';
 import 'package:watch_your_money/features/dashboard/dashboard_screen.dart';
 import 'package:watch_your_money/features/transactions/history_screen.dart';
@@ -29,7 +30,10 @@ class _MainScreenState extends ConsumerState<MainScreen> {
   void initState() {
     super.initState();
     Future.delayed(const Duration(seconds: 3), () {
-      if (mounted) UpdateHelper.checkForUpdates(context);
+      if (mounted) {
+        final t = AppTranslations.of(ref.read(settingsProvider).languageCode);
+        UpdateHelper.checkForUpdates(context, t: t);
+      }
     });
   }
 
@@ -42,20 +46,20 @@ class _MainScreenState extends ConsumerState<MainScreen> {
 
   void _openTransactionModal(String type) {
     setState(() => _isMenuOpen = false);
-    showModalBottomSheet(
-      context: context,
+    context.showAnimatedBottomSheet(
+      builder: (context) => AddTransactionModal(initialType: type),
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (context) => AddTransactionModal(initialType: type),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      barrierColor: Colors.black.withValues(alpha: 0.65),
     );
   }
 
   void _openAIAssistant() {
     setState(() => _isMenuOpen = false);
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (_) => const AIAssistantScreen()),
-    );
+    context.pushModalPage(const AIAssistantScreen());
   }
 
   void _toggleMenu() {
@@ -74,7 +78,37 @@ class _MainScreenState extends ConsumerState<MainScreen> {
         // ── Base Scaffold ──────────────────────────────────────────
         Scaffold(
           backgroundColor: AppColors.surfaceCanvas,
-          body: IndexedStack(index: _currentIndex, children: _pages),
+          body: AnimatedSwitcher(
+            duration: const Duration(milliseconds: 200),
+            switchInCurve: Curves.easeOutCubic,
+            switchOutCurve: Curves.easeInCubic,
+            transitionBuilder: (child, animation) {
+              final curvedAnimation = CurvedAnimation(
+                parent: animation,
+                curve: Curves.easeOutCubic,
+                reverseCurve: Curves.easeInCubic,
+              );
+
+              final slideAnimation = Tween<Offset>(
+                begin: const Offset(0.08, 0),
+                end: Offset.zero,
+              ).animate(curvedAnimation);
+
+              final fadeAnimation = Tween<double>(
+                begin: 0.0,
+                end: 1.0,
+              ).animate(curvedAnimation);
+
+              return FadeTransition(
+                opacity: fadeAnimation,
+                child: SlideTransition(
+                  position: slideAnimation,
+                  child: child,
+                ),
+              );
+            },
+            child: _pages[_currentIndex],
+          ),
 
           // ── Bottom Navigation Bar ────────────────────────────────
           bottomNavigationBar: Container(

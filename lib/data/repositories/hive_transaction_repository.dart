@@ -32,10 +32,49 @@ class HiveTransactionRepository implements TransactionRepository {
     return box.values.toList()..sort((a, b) => b.date.compareTo(a.date));
   }
 
+  /// Calculate current balance for a payment method from existing transactions
+  double _calculateCurrentBalance(List<TransactionModel> transactions, String paymentMethod) {
+    double income = 0;
+    double expense = 0;
+    for (final tx in transactions) {
+      if (tx.paymentMethod == paymentMethod) {
+        if (tx.type == 'income') {
+          income += tx.amount;
+        } else {
+          expense += tx.amount;
+        }
+      }
+    }
+    return income - expense;
+  }
+
   @override
   Future<void> addTransaction(TransactionModel transaction) async {
     final box = await _openBox();
-    await box.put(transaction.id, transaction);
+
+    // Calculate balance before this transaction
+    final existingTransactions = box.values.toList();
+    final balanceBefore = _calculateCurrentBalance(existingTransactions, transaction.paymentMethod);
+
+    // Calculate balance after
+    final balanceAfter = transaction.type == 'income'
+        ? balanceBefore + transaction.amount
+        : balanceBefore - transaction.amount;
+
+    // Create new transaction with balance info
+    final txWithBalance = TransactionModel(
+      id: transaction.id,
+      amount: transaction.amount,
+      type: transaction.type,
+      categoryId: transaction.categoryId,
+      note: transaction.note,
+      date: transaction.date,
+      paymentMethod: transaction.paymentMethod,
+      balanceBefore: balanceBefore,
+      balanceAfter: balanceAfter,
+    );
+
+    await box.put(txWithBalance.id, txWithBalance);
   }
 
   @override

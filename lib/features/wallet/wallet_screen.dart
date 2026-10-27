@@ -7,7 +7,9 @@ import 'package:watch_your_money/core/i18n/app_translations.dart';
 import 'package:watch_your_money/core/settings/settings_provider.dart';
 import 'package:watch_your_money/core/theme/app_colors.dart';
 import 'package:watch_your_money/core/theme/neumorphic_container.dart';
+import 'package:watch_your_money/core/transitions/page_transitions.dart';
 import 'package:watch_your_money/core/utils/currency_formatter.dart';
+import 'package:watch_your_money/core/utils/custom_dialog.dart';
 import 'package:watch_your_money/domain/models/transaction_model.dart';
 import 'package:watch_your_money/features/auth/auth_provider.dart';
 import 'package:watch_your_money/features/auth/auth_screen.dart';
@@ -42,57 +44,15 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
 
   Future<void> _logout(BuildContext context) async {
     final t = AppTranslations.of(ref.read(appSettingsProvider).languageCode);
-    final shouldLogout = await showDialog<bool>(
+    final shouldLogout = await showCustomConfirm(
       context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: AppColors.surfaceContainer,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
-          side: const BorderSide(color: Color(0x1AFFFFFF), width: 1),
-        ),
-        title: Row(
-          children: [
-            const Icon(
-              Icons.logout_rounded,
-              color: AppColors.negativeLight,
-              size: 22,
-            ),
-            const SizedBox(width: 10),
-            Text(
-              t.logoutConfirm,
-              style: const TextStyle(
-                color: AppColors.textPrimary,
-                fontSize: 18,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ],
-        ),
-        content: Text(
-          t.logoutMessage,
-          style: const TextStyle(color: AppColors.textSecondary, fontSize: 13),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(false),
-            child: Text(
-              t.cancel,
-              style: const TextStyle(color: AppColors.textMuted),
-            ),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.negative,
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10),
-              ),
-            ),
-            onPressed: () => Navigator.of(ctx).pop(true),
-            child: Text(t.logout),
-          ),
-        ],
-      ),
+      title: t.logoutConfirm,
+      message: t.logoutMessage,
+      confirmText: t.logout,
+      cancelText: t.cancel,
+      isDestructive: true,
+      icon: Icons.logout_rounded,
+      iconColor: AppColors.negativeLight,
     );
 
     if (shouldLogout == true && context.mounted) {
@@ -112,15 +72,18 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
     required double cardBalance,
     required double cashBalance,
   }) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (_) => AdjustBalanceModal(
+    context.showAnimatedBottomSheet(
+      builder: (context) => AdjustBalanceModal(
         initialMethod: initialMethod,
         currentCardBalance: cardBalance,
         currentCashBalance: cashBalance,
       ),
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      barrierColor: Colors.black.withValues(alpha: 0.65),
     );
   }
 
@@ -1303,115 +1266,136 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
   ) {
     final isIncome = tx.type == 'income';
     final isCard = tx.paymentMethod == 'card';
+    final color = isIncome ? AppColors.positive : AppColors.negative;
+
+    // Build balance change text if available
+    final hasBalanceInfo = tx.balanceBefore != 0.0 || tx.balanceAfter != 0.0;
+    final balanceText = hasBalanceInfo
+        ? '${fmt.format(tx.balanceBefore)} → ${fmt.format(tx.balanceAfter)}'
+        : null;
 
     return Padding(
           padding: const EdgeInsets.only(bottom: 10),
           child: NeumorphicContainer(
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
             borderRadius: 16,
-            child: Row(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Category Icon
-                Container(
-                  width: 42,
-                  height: 42,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(12),
-                    color: (isIncome ? AppColors.positive : AppColors.negative)
-                        .withValues(alpha: 0.12),
-                    border: Border.all(
-                      color:
-                          (isIncome
-                                  ? AppColors.positiveLight
-                                  : AppColors.negativeLight)
-                              .withValues(alpha: 0.25),
-                    ),
-                  ),
-                  child: Center(
-                    child: Icon(
-                      _categoryIcon(tx.categoryId),
-                      color: isIncome
-                          ? AppColors.positiveLight
-                          : AppColors.negativeLight,
-                      size: 20,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 12),
-
-                // Note & Date & Method Tag
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        tx.note.isNotEmpty ? tx.note : tx.categoryId,
-                        style: const TextStyle(
-                          color: AppColors.textPrimary,
-                          fontSize: 13,
-                          fontWeight: FontWeight.w700,
+                Row(
+                  children: [
+                    // Category Icon
+                    Container(
+                      width: 42,
+                      height: 42,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(12),
+                        color: color.withValues(alpha: 0.12),
+                        border: Border.all(
+                          color: (isIncome
+                                      ? AppColors.positiveLight
+                                      : AppColors.negativeLight)
+                                  .withValues(alpha: 0.25),
                         ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
                       ),
-                      const SizedBox(height: 3),
-                      Row(
+                      child: Center(
+                        child: Icon(
+                          _categoryIcon(tx.categoryId),
+                          color: isIncome
+                              ? AppColors.positiveLight
+                              : AppColors.negativeLight,
+                          size: 20,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+
+                    // Note & Date & Method Tag
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            DateFormat('d MMM, HH:mm').format(tx.date),
+                            tx.note.isNotEmpty ? tx.note : tx.categoryId,
                             style: const TextStyle(
-                              color: AppColors.textMuted,
-                              fontSize: 11,
+                              color: AppColors.textPrimary,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700,
                             ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                           ),
-                          const SizedBox(width: 6),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 5,
-                              vertical: 1.5,
-                            ),
-                            decoration: BoxDecoration(
-                              color:
-                                  (isCard
-                                          ? const Color(0xFF6366F1)
-                                          : const Color(0xFF10B981))
-                                      .withValues(alpha: 0.15),
-                              borderRadius: BorderRadius.circular(4),
-                              border: Border.all(
-                                color:
-                                    (isCard
-                                            ? const Color(0xFF818CF8)
-                                            : const Color(0xFF34D399))
-                                        .withValues(alpha: 0.3),
+                          const SizedBox(height: 3),
+                          Row(
+                            children: [
+                              Text(
+                                DateFormat('d MMM, HH:mm').format(tx.date),
+                                style: const TextStyle(
+                                  color: AppColors.textMuted,
+                                  fontSize: 11,
+                                ),
                               ),
-                            ),
-                            child: Text(
-                              isCard ? '💳 Card' : '💵 Cash',
+                              const SizedBox(width: 6),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 5,
+                                  vertical: 1.5,
+                                ),
+                                decoration: BoxDecoration(
+                                  color:
+                                      (isCard
+                                              ? const Color(0xFF6366F1)
+                                              : const Color(0xFF10B981))
+                                          .withValues(alpha: 0.15),
+                                  borderRadius: BorderRadius.circular(4),
+                                  border: Border.all(
+                                    color:
+                                        (isCard
+                                                ? const Color(0xFF818CF8)
+                                                : const Color(0xFF34D399))
+                                            .withValues(alpha: 0.3),
+                                  ),
+                                ),
+                                child: Text(
+                                  isCard ? '💳 Card' : '💵 Cash',
+                                  style: TextStyle(
+                                    color: isCard
+                                        ? const Color(0xFF818CF8)
+                                        : const Color(0xFF34D399),
+                                    fontSize: 9,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          if (balanceText != null) ...[
+                            const SizedBox(height: 4),
+                            Text(
+                              balanceText,
                               style: TextStyle(
-                                color: isCard
-                                    ? const Color(0xFF818CF8)
-                                    : const Color(0xFF34D399),
-                                fontSize: 9,
-                                fontWeight: FontWeight.w700,
+                                color: AppColors.textMuted.withValues(alpha: 0.7),
+                                fontSize: 10,
+                                fontFamily: 'monospace',
                               ),
                             ),
-                          ),
+                          ],
                         ],
                       ),
-                    ],
-                  ),
-                ),
+                    ),
 
-                // Amount
-                Text(
-                  '${isIncome ? '+' : '-'} ${fmt.format(tx.amount)}',
-                  style: TextStyle(
-                    color: isIncome
-                        ? AppColors.positiveLight
-                        : AppColors.negativeLight,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w700,
-                  ),
+                    // Amount
+                    Text(
+                      '${isIncome ? '+' : '-'} ${fmt.format(tx.amount)}',
+                      style: TextStyle(
+                        color: isIncome
+                            ? AppColors.positiveLight
+                            : AppColors.negativeLight,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
