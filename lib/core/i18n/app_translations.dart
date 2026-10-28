@@ -24,6 +24,51 @@ class AppTranslations {
   String get statistics => _id ? 'Statistik' : 'Statistics';
   String get wallet => _id ? 'Dompet' : 'Wallet';
   String get profile => _id ? 'Profil' : 'Profile';
+  String get goals => _id ? 'Target' : 'Goals';
+
+  // ── Goals ────────────────────────────────────────────────────────
+  String get goalsTitle => _id ? 'Target Keuangan' : 'Financial Goals';
+  String get createGoal => _id ? 'Buat Target' : 'Create Goal';
+  String get editGoal => _id ? 'Edit Target' : 'Edit Goal';
+  String get goalTitle => _id ? 'Nama Target' : 'Goal Name';
+  String get goalTargetAmount => _id ? 'Target Nominal' : 'Target Amount';
+  String get goalCategory => _id ? 'Kategori' : 'Category';
+  String get goalTargetDate => _id ? 'Tanggal Target' : 'Target Date';
+  String get goalInitialAmount => _id ? 'Nominal Awal' : 'Initial Amount';
+  String get goalCurrentAmount => _id ? 'Terkumpul' : 'Saved Amount';
+  String get goalProgress => _id ? 'Progres' : 'Progress';
+  String get goalRemaining => _id ? 'Sisa' : 'Remaining';
+  String get goalDaysRemaining => _id ? 'Hari tersisa' : 'Days remaining';
+  String get addSavings => _id ? 'Tambah Tabungan' : 'Add Savings';
+  String get savingsAmount => _id ? 'Jumlah Tabungan' : 'Savings Amount';
+  String get goalCompleted => _id ? 'Target Tercapai!' : 'Goal Completed!';
+  String get goalOverdue => _id ? 'Target Terlewat' : 'Goal Overdue';
+  String get noGoals => _id ? 'Belum ada target' : 'No goals yet';
+  String get noActiveGoals => _id ? 'Belum ada target aktif' : 'No active goals';
+  String get emptyStateTitle => _id ? 'Berikan arah pada uangmu.' : 'Give your money a direction.';
+  String get emptyStateSubtitle =>
+      _id ? 'Buat target keuangan pertama untuk mulai menabung.' : 'Create your first financial goal to start saving.';
+  String get createFirstGoal => _id ? 'Buat Target Pertama' : 'Create First Goal';
+  String get activeGoals => _id ? 'Target Aktif' : 'Active Goals';
+  String get completedGoals => _id ? 'Target Selesai' : 'Completed Goals';
+  String get totalSaved => _id ? 'Total Terkumpul' : 'Total Saved';
+  String get goalDetail => _id ? 'Detail Target' : 'Goal Detail';
+  String get goalHistory => _id ? 'Riwayat Kontribusi' : 'Contribution History';
+  String get completeGoal => _id ? 'Selesaikan' : 'Complete';
+  String get archiveGoal => _id ? 'Arsipkan' : 'Archive';
+  String get deleteGoal => _id ? 'Hapus Target' : 'Delete Goal';
+  String get confirmDeleteGoal =>
+      _id ? 'Target ini akan dihapus permanen.' : 'This goal will be permanently deleted.';
+  String get goalSaved => _id ? 'Target berhasil disimpan' : 'Goal saved successfully';
+  String get goalUpdated => _id ? 'Target berhasil diperbarui' : 'Goal updated successfully';
+  String get goalDeleted => _id ? 'Target berhasil dihapus' : 'Goal deleted successfully';
+  String get savingsAdded => _id ? 'Tabungan ditambahkan' : 'Savings added';
+  String get enterValidTargetAmount =>
+      _id ? 'Masukkan nominal target yang valid' : 'Enter a valid target amount';
+  String get enterValidSavingsAmount =>
+      _id ? 'Masukkan nominal tabungan yang valid' : 'Enter a valid savings amount';
+  String get targetDateRequired =>
+      _id ? 'Tanggal target wajib diisi' : 'Target date is required';
 
   // ── Dashboard ────────────────────────────────────────────────────
   String get netWorth => _id ? 'Saldo Bersih (Net Worth)' : 'Net Worth Balance';

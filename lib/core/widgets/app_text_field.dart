@@ -1,5 +1,6 @@
 /// Unified text field component for the app.
 /// Replaces 4+ different text field implementations across screens.
+library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -168,14 +169,19 @@ class _AppTextFieldState extends State<AppTextField> {
                   fontSize: 11,
                 ),
                 prefixIcon: widget.prefixIcon != null
-                    ? Icon(widget.prefixIcon, color: AppColors.textMuted, size: AppSizes.iconMd)
+                    ? Icon(
+                        widget.prefixIcon,
+                        color: AppColors.textMuted,
+                        size: AppSizes.iconMd,
+                      )
                     : null,
                 suffixIcon: widget.suffixIcon,
                 border: InputBorder.none,
                 enabledBorder: InputBorder.none,
                 focusedBorder: InputBorder.none,
                 disabledBorder: InputBorder.none,
-                contentPadding: widget.contentPadding ??
+                contentPadding:
+                    widget.contentPadding ??
                     const EdgeInsets.symmetric(
                       horizontal: AppSpacing.lg,
                       vertical: AppSpacing.md,

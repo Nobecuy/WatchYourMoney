@@ -7,6 +7,8 @@ import 'package:watch_your_money/core/theme/app_colors.dart';
 import 'package:watch_your_money/core/theme/neumorphic_container.dart';
 import 'package:watch_your_money/core/transitions/page_transitions.dart';
 import 'package:watch_your_money/core/utils/currency_formatter.dart';
+import 'package:watch_your_money/core/widgets/app_button.dart';
+import 'package:watch_your_money/core/widgets/app_constants.dart';
 import 'package:watch_your_money/domain/models/transaction_model.dart';
 import 'package:watch_your_money/features/dashboard/dashboard_provider.dart';
 import 'package:watch_your_money/features/profile/profile_screen.dart';
@@ -16,6 +18,9 @@ import 'package:watch_your_money/features/ai_assistant/ai_assistant_screen.dart'
 import 'package:watch_your_money/core/settings/settings_provider.dart';
 import 'package:watch_your_money/core/i18n/app_translations.dart';
 import 'package:watch_your_money/core/tips/app_tips.dart';
+import 'package:watch_your_money/features/goals/models/goal_model.dart';
+import 'package:watch_your_money/features/goals/widgets/create_goal_modal.dart';
+import 'package:watch_your_money/features/goals/widgets/goal_detail_screen.dart';
 
 class DashboardScreen extends ConsumerStatefulWidget {
   const DashboardScreen({super.key});
@@ -264,6 +269,14 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                     .animate()
                     .fadeIn(delay: 180.ms, duration: 350.ms)
                     .slideY(begin: 0.1),
+              ),
+            ),
+
+            // ── Goals Summary ───────────────────────────────────────
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+                child: _buildGoalsSection(t, fmt),
               ),
             ),
 
@@ -1306,5 +1319,347 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       default:
         return Icons.receipt_rounded;
     }
+  }
+
+  /// Builds the Goals summary section for the dashboard
+  Widget _buildGoalsSection(AppTranslations t, CurrencyFormatter fmt) {
+    // Watch activeGoalsProvider directly (it's a Provider<List<GoalModel>>)
+    final activeGoals = ref.watch(activeGoalsProvider);
+
+    if (activeGoals.isEmpty) {
+      return _buildEmptyGoalsState(t, fmt);
+    }
+
+    // Show up to 3 active goals
+    final displayGoals = activeGoals.take(3).toList();
+
+    return Column(
+      children: [
+        // Section header
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              t.activeGoals.toUpperCase(),
+              style: const TextStyle(
+                color: AppColors.textMuted,
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 1.4,
+              ),
+            ),
+            if (activeGoals.length > 3)
+              Text(
+                '${t.allLabel} (${activeGoals.length})',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: AppColors.textSecondary,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+          ],
+        ).animate().fadeIn(delay: 200.ms, duration: 300.ms),
+        const SizedBox(height: 12),
+        // Goal cards
+        ...displayGoals.asMap().entries.map((entry) {
+          final index = entry.key;
+          final goal = entry.value;
+          return Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: _buildDashboardGoalCard(goal, fmt, t),
+              )
+              .animate()
+              .fadeIn(delay: (200 + index * 60).ms, duration: 300.ms)
+              .slideY(begin: 0.1);
+        }),
+      ],
+    );
+  }
+
+  /// Empty state when no active goals exist
+  Widget _buildEmptyGoalsState(AppTranslations t, CurrencyFormatter fmt) {
+    return NeumorphicContainer(
+      borderRadius: AppRadii.xl,
+      padding: const EdgeInsets.all(AppSpacing.xl),
+      child: Column(
+        children: [
+          Container(
+            width: 70,
+            height: 70,
+            decoration: BoxDecoration(
+              color: const Color(0xFF818CF8).withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(AppRadii.xl),
+            ),
+            child: const Icon(
+              Icons.flag_outlined,
+              color: Color(0xFF818CF8),
+              size: 32,
+            ),
+          ),
+          const SizedBox(height: AppSpacing.md),
+          Text(
+            t.noActiveGoals,
+            style: const TextStyle(
+              color: AppColors.textPrimary,
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          Text(
+            t.emptyStateSubtitle,
+            style: const TextStyle(
+              color: AppColors.textSecondary,
+              fontSize: 12,
+              height: 1.5,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: AppSpacing.lg),
+          AppButtonPrimary(
+            label: t.createFirstGoal,
+            onPressed: () => _openCreateGoalModal(),
+            isFullWidth: true,
+            size: AppButtonSize.large,
+          ),
+        ],
+      ),
+    ).animate().fadeIn(delay: 200.ms, duration: 400.ms).slideY(begin: 0.1);
+  }
+
+  /// Compact goal card for dashboard view
+  Widget _buildDashboardGoalCard(
+    GoalModel goal,
+    CurrencyFormatter fmt,
+    AppTranslations t,
+  ) {
+    final progress = goal.progress;
+    final categoryColor = GoalModel.getCategoryColor(goal.category);
+    final categoryIcon = GoalModel.getCategoryIcon(goal.category);
+    final isOverdue = goal.isOverdue && goal.status != 'completed';
+
+    return NeumorphicContainer(
+      borderRadius: AppRadii.lg,
+      padding: const EdgeInsets.all(AppSpacing.md),
+      isPressed: true,
+      enablePressAnimation: true,
+      onTap: () => _navigateToGoalDetail(goal),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header with category icon and progress percentage
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(AppSpacing.sm),
+                decoration: BoxDecoration(
+                  color: categoryColor.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(AppRadii.md),
+                ),
+                child: Icon(
+                  categoryIcon,
+                  color: categoryColor,
+                  size: AppSizes.iconMd,
+                ),
+              ),
+              const SizedBox(width: AppSpacing.md),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      goal.title,
+                      style: const TextStyle(
+                        color: AppColors.textPrimary,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    Text(
+                      goal.categoryDisplayName,
+                      style: const TextStyle(
+                        color: AppColors.textMuted,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Text(
+                '${(progress * 100).round()}%',
+                style: TextStyle(
+                  color: categoryColor,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ],
+          ),
+
+          const SizedBox(height: AppSpacing.md),
+
+          // Progress Bar with amounts
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    fmt.format(goal.currentAmount),
+                    style: const TextStyle(
+                      color: AppColors.textSecondary,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  Text(
+                    fmt.format(goal.targetAmount),
+                    style: const TextStyle(
+                      color: AppColors.textMuted,
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: AppSpacing.xs),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(AppRadii.pill),
+                child: SizedBox(
+                  height: 6,
+                  child: LinearProgressIndicator(
+                    value: progress,
+                    backgroundColor: AppColors.surfaceContainerLow,
+                    valueColor: AlwaysStoppedAnimation<Color>(
+                      goal.status == 'completed'
+                          ? AppColors.positive
+                          : categoryColor,
+                    ),
+                    borderRadius: BorderRadius.circular(AppRadii.pill),
+                  ),
+                ),
+              ),
+            ],
+          ),
+
+          const SizedBox(height: AppSpacing.sm),
+
+          // Footer with remaining and days
+          // Footer with remaining and days
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (goal.status != 'completed') ...[
+                      Text(
+                        '${t.goalRemaining}: ${fmt.format(goal.remainingAmount)}',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: isOverdue
+                              ? AppColors.negative
+                              : AppColors.textSecondary,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      if (!isOverdue)
+                        Text(
+                          '${goal.daysRemaining} ${t.goalDaysRemaining}',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: AppColors.textMuted,
+                            fontSize: 10,
+                          ),
+                        )
+                      else
+                        Text(
+                          t.goalOverdue,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: AppColors.negative,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                    ] else
+                      Text(
+                        t.goalCompleted,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: AppColors.positive,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              if (goal.status != 'completed')
+                AppButton(
+                  icon: Icons.add_rounded,
+                  label: t.addSavings,
+                  style: AppButtonStyle.ghost,
+                  size: AppButtonSize.small,
+                  onPressed: () => _showAddSavingsModal(goal, fmt, t),
+                ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _openCreateGoalModal() {
+    final t = AppTranslations.of(ref.read(settingsProvider).languageCode);
+    final fmt = CurrencyFormatter.from(ref.read(settingsProvider));
+    context.showAnimatedBottomSheet(
+      builder: (context) => CreateGoalModal(
+        fmt: fmt,
+        t: t,
+        onSaved: () => ref.invalidate(goalsProvider),
+      ),
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      barrierColor: Colors.black.withValues(alpha: 0.65),
+    );
+  }
+
+  void _showAddSavingsModal(
+    GoalModel goal,
+    CurrencyFormatter fmt,
+    AppTranslations t,
+  ) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => AddSavingsModal(
+        goal: goal,
+        fmt: fmt,
+        t: t,
+        onSaved: () => ref.invalidate(goalsProvider),
+      ),
+    );
+  }
+
+  void _navigateToGoalDetail(GoalModel goal) {
+    Navigator.of(context)
+        .push(MaterialPageRoute(builder: (_) => GoalDetailScreen(goal: goal)));
   }
 }

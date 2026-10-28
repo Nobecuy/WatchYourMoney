@@ -1,5 +1,6 @@
 /// Chart data computation service for Statistics screen.
 /// Extracted from StatisticsScreen to separate business logic from UI.
+library;
 
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
@@ -83,11 +84,13 @@ class ChartDataService {
         final exp = dayTxs
             .where((t) => t.type == 'expense')
             .fold(0.0, (s, t) => s + t.amount);
-        barData.add(ChartDataPoint(
-          label: DateFormat('E').format(d),
-          income: inc,
-          expense: exp,
-        ));
+        barData.add(
+          ChartDataPoint(
+            label: DateFormat('E').format(d),
+            income: inc,
+            expense: exp,
+          ),
+        );
       }
     } else if (period == 'MONTH') {
       for (int w = 1; w <= 4; w++) {
@@ -102,11 +105,9 @@ class ChartDataService {
         final exp = weekTxs
             .where((t) => t.type == 'expense')
             .fold(0.0, (s, t) => s + t.amount);
-        barData.add(ChartDataPoint(
-          label: '$weekLabel $w',
-          income: inc,
-          expense: exp,
-        ));
+        barData.add(
+          ChartDataPoint(label: '$weekLabel $w', income: inc, expense: exp),
+        );
       }
     } else {
       for (int m = 5; m >= 0; m--) {
@@ -120,11 +121,13 @@ class ChartDataService {
         final exp = monthTxs
             .where((t) => t.type == 'expense')
             .fold(0.0, (s, t) => s + t.amount);
-        barData.add(ChartDataPoint(
-          label: DateFormat('MMM').format(date),
-          income: inc,
-          expense: exp,
-        ));
+        barData.add(
+          ChartDataPoint(
+            label: DateFormat('MMM').format(date),
+            income: inc,
+            expense: exp,
+          ),
+        );
       }
     }
 

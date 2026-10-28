@@ -2,13 +2,17 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:watch_your_money/core/ai/tool_handlers.dart';
 import 'package:watch_your_money/data/repositories/hive_chat_message_repository.dart';
+import 'package:watch_your_money/data/repositories/hive_goal_repository.dart';
 import 'package:watch_your_money/data/repositories/hive_noir_settings_repository.dart';
 import 'package:watch_your_money/data/repositories/hive_pending_action_repository.dart';
 import 'package:watch_your_money/data/repositories/hive_transaction_repository.dart';
+import 'package:watch_your_money/data/repositories/supabase_goal_repository.dart';
 import 'package:watch_your_money/data/repositories/supabase_transaction_repository.dart';
+import 'package:watch_your_money/features/goals/models/goal_model.dart';
 import 'package:watch_your_money/domain/models/noir_settings_model.dart';
 import 'package:watch_your_money/domain/models/transaction_model.dart';
 import 'package:watch_your_money/domain/repositories/chat_message_repository.dart';
+import 'package:watch_your_money/domain/repositories/goal_repository.dart';
 import 'package:watch_your_money/domain/repositories/noir_settings_repository.dart';
 import 'package:watch_your_money/domain/repositories/pending_action_repository.dart';
 import 'package:watch_your_money/domain/repositories/transaction_repository.dart';
@@ -62,3 +66,45 @@ final noirSettingsProvider = FutureProvider<NoirSettingsModel>((ref) async {
 
 /// Tool handlers provider
 final toolHandlersProvider = Provider<ToolHandlers>((ref) => ToolHandlers(ref));
+
+/// Provider repository — memilih Hive (guest/offline) atau Supabase (authenticated online)
+final goalRepositoryProvider = Provider<GoalRepository>((ref) {
+  final authState = ref.watch(authProvider);
+
+  // If guest mode or offline mode, use local Hive storage
+  if (authState.isGuest || authState.isOfflineMode) {
+    // For offline mode, if we have a user ID, use their local box
+    // For guest, use the guest box
+    final userId = authState.isOfflineMode ? authState.user?.id : null;
+    return HiveGoalRepository(userId: userId);
+  }
+
+  // Logged-in and online: use Supabase with dual-write to local cache
+  return SupabaseGoalRepository(Supabase.instance.client);
+});
+
+/// Provider daftar goals
+final goalsProvider = FutureProvider<List<GoalModel>>((ref) async {
+  final repository = ref.watch(goalRepositoryProvider);
+  return repository.getGoals();
+});
+
+/// Provider untuk goal aktif (status = active)
+final activeGoalsProvider = Provider<List<GoalModel>>((ref) {
+  final goalsAsync = ref.watch(goalsProvider);
+  return goalsAsync.when(
+    data: (goals) => goals.where((g) => g.status == 'active').toList(),
+    loading: () => [],
+    error: (_, _) => [],
+  );
+});
+
+/// Provider untuk goal yang sudah selesai
+final completedGoalsProvider = Provider<List<GoalModel>>((ref) {
+  final goalsAsync = ref.watch(goalsProvider);
+  return goalsAsync.when(
+    data: (goals) => goals.where((g) => g.status == 'completed').toList(),
+    loading: () => [],
+    error: (_, _) => [],
+  );
+});

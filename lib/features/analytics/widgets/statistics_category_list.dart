@@ -1,4 +1,5 @@
 /// Category breakdown list widget for Statistics screen.
+library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -29,7 +30,12 @@ class StatisticsCategoryList extends ConsumerWidget {
     if (categoryData.isEmpty) return const SizedBox.shrink();
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.lg, AppSpacing.lg, 0),
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.lg,
+        AppSpacing.lg,
+        AppSpacing.lg,
+        0,
+      ),
       child: NeumorphicContainer(
         borderRadius: AppRadii.xxl,
         padding: const EdgeInsets.all(AppSpacing.lg),
@@ -67,11 +73,17 @@ class StatisticsCategoryList extends ConsumerWidget {
               final index = entry.key;
               final data = entry.value;
               return Padding(
-                padding: EdgeInsets.only(bottom: index == categoryData.length - 1 ? 0 : AppSpacing.lg),
+                padding: EdgeInsets.only(
+                  bottom: index == categoryData.length - 1 ? 0 : AppSpacing.lg,
+                ),
                 child: _buildCategoryRow(data, fmt)
                     .animate()
                     .fadeIn(delay: (index * 50).ms, duration: 300.ms)
-                    .slideX(begin: 0.1, delay: (index * 50).ms, duration: 300.ms),
+                    .slideX(
+                      begin: 0.1,
+                      delay: (index * 50).ms,
+                      duration: 300.ms,
+                    ),
               );
             }),
           ],

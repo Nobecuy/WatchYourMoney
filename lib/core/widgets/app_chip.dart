@@ -1,5 +1,6 @@
 /// Unified chip and segmented control components for the app.
 /// Replaces duplicated selector implementations across screens.
+library;
 
 import 'package:flutter/material.dart';
 import 'package:watch_your_money/core/theme/app_colors.dart';
@@ -34,7 +35,8 @@ class AppChip extends StatelessWidget {
       child: AnimatedContainer(
         duration: AppDurations.normal,
         curve: AppAnimations.standard,
-        padding: padding ??
+        padding:
+            padding ??
             const EdgeInsets.symmetric(
               horizontal: AppSpacing.md,
               vertical: AppSpacing.xs,
@@ -131,7 +133,9 @@ class AppSegmentedControl<T> extends StatelessWidget {
                           ? AppColors.textPrimary
                           : AppColors.textMuted,
                       fontSize: dense ? 10 : 11,
-                      fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                      fontWeight: isSelected
+                          ? FontWeight.w700
+                          : FontWeight.w500,
                     ),
                   ),
                 ],
@@ -149,11 +153,7 @@ class AppSegment<T> {
   final String label;
   final IconData? icon;
 
-  const AppSegment({
-    required this.value,
-    required this.label,
-    this.icon,
-  });
+  const AppSegment({required this.value, required this.label, this.icon});
 }
 
 /// Filter chip with count badge (for category filters with transaction counts)
@@ -215,9 +215,7 @@ class AppFilterChip extends StatelessWidget {
                 vertical: 1,
               ),
               decoration: BoxDecoration(
-                color: selected
-                    ? chipColor
-                    : AppColors.surfaceDim,
+                color: selected ? chipColor : AppColors.surfaceDim,
                 borderRadius: BorderRadius.circular(AppRadii.pill),
               ),
               child: Text(
@@ -269,10 +267,7 @@ class AppActionChip extends StatelessWidget {
         ),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(AppRadii.pill),
-          side: BorderSide(
-            color: bgColor.withValues(alpha: 0.4),
-            width: 1,
-          ),
+          side: BorderSide(color: bgColor.withValues(alpha: 0.4), width: 1),
         ),
         minimumSize: Size.zero,
         tapTargetSize: MaterialTapTargetSize.shrinkWrap,
@@ -286,10 +281,7 @@ class AppActionChip extends StatelessWidget {
           ],
           Text(
             label,
-            style: const TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-            ),
+            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
           ),
         ],
       ),

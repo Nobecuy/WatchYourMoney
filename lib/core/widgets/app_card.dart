@@ -1,5 +1,6 @@
 /// Unified card and section container components for the app.
 /// Replaces repeated NeumorphicContainer patterns with consistent padding, radius, and styling.
+library;
 
 import 'package:flutter/material.dart';
 import 'package:watch_your_money/core/theme/app_colors.dart';
@@ -117,7 +118,7 @@ class AppSection extends StatelessWidget {
                       ],
                     ),
                   ),
-                if (trailing != null) trailing!,
+                ?trailing,
               ],
             ),
           ),
@@ -284,7 +285,9 @@ class AppInfoCard extends StatelessWidget {
                 vertical: AppSpacing.xs,
               ),
               decoration: BoxDecoration(
-                color: (badgeColor ?? AppColors.positive).withValues(alpha: 0.15),
+                color: (badgeColor ?? AppColors.positive).withValues(
+                  alpha: 0.15,
+                ),
                 borderRadius: BorderRadius.circular(AppRadii.sm),
               ),
               child: Text(
@@ -296,7 +299,7 @@ class AppInfoCard extends StatelessWidget {
                 ),
               ),
             ),
-          if (trailing != null) trailing!,
+          ?trailing,
         ],
       ),
     );
@@ -364,7 +367,9 @@ class AppTransitionDisplay extends StatelessWidget {
               borderRadius: BorderRadius.circular(AppRadii.pill),
             ),
             child: Icon(
-              isPositive ? Icons.arrow_upward_rounded : Icons.arrow_downward_rounded,
+              isPositive
+                  ? Icons.arrow_upward_rounded
+                  : Icons.arrow_downward_rounded,
               size: AppSizes.iconSm,
               color: isPositive ? AppColors.positive : AppColors.negative,
             ),

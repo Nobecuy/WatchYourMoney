@@ -1,4 +1,5 @@
 /// Summary cards widget for Statistics screen (Income/Expense).
+library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
@@ -25,33 +26,39 @@ class StatisticsSummaryCards extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.lg, AppSpacing.lg, 0),
-      child: Row(
-        children: [
-          Expanded(
-            child: _buildSummaryCard(
-              label: t.income.toUpperCase(),
-              amount: totalIncome,
-              color: AppColors.positive,
-              icon: Icons.arrow_downward_rounded,
-              fmt: fmt,
-            ),
-          ),
-          const SizedBox(width: AppSpacing.md),
-          Expanded(
-            child: _buildSummaryCard(
-              label: t.expense.toUpperCase(),
-              amount: totalExpense,
-              color: AppColors.negative,
-              icon: Icons.arrow_upward_rounded,
-              fmt: fmt,
-            ),
-          ),
-        ],
-      )
-          .animate()
-          .fadeIn(delay: AppDurations.fast, duration: AppDurations.slow)
-          .slideY(begin: 0.1),
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.lg,
+        AppSpacing.lg,
+        AppSpacing.lg,
+        0,
+      ),
+      child:
+          Row(
+                children: [
+                  Expanded(
+                    child: _buildSummaryCard(
+                      label: t.income.toUpperCase(),
+                      amount: totalIncome,
+                      color: AppColors.positive,
+                      icon: Icons.arrow_downward_rounded,
+                      fmt: fmt,
+                    ),
+                  ),
+                  const SizedBox(width: AppSpacing.md),
+                  Expanded(
+                    child: _buildSummaryCard(
+                      label: t.expense.toUpperCase(),
+                      amount: totalExpense,
+                      color: AppColors.negative,
+                      icon: Icons.arrow_upward_rounded,
+                      fmt: fmt,
+                    ),
+                  ),
+                ],
+              )
+              .animate()
+              .fadeIn(delay: AppDurations.fast, duration: AppDurations.slow)
+              .slideY(begin: 0.1),
     );
   }
 

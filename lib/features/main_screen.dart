@@ -1,391 +1,675 @@
-import 'dart:ui';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
-import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:watch_your_money/core/i18n/app_translations.dart';
-import 'package:watch_your_money/core/settings/settings_provider.dart';
-import 'package:watch_your_money/core/theme/app_colors.dart';
-import 'package:watch_your_money/core/transitions/page_transitions.dart';
-import 'package:watch_your_money/core/updates/update_helper.dart';
-import 'package:watch_your_money/features/dashboard/dashboard_screen.dart';
-import 'package:watch_your_money/features/transactions/history_screen.dart';
-import 'package:watch_your_money/features/analytics/statistics_screen.dart';
-import 'package:watch_your_money/features/wallet/wallet_screen.dart';
-import 'package:watch_your_money/features/ai_assistant/ai_assistant_screen.dart';
-import 'package:watch_your_money/features/transactions/add_transaction_modal.dart';
 
-class MainScreen extends ConsumerStatefulWidget {
+import '../../core/theme/app_colors.dart';
+import '../../core/utils/currency_formatter.dart';
+import '../../core/i18n/app_translations.dart';
+import '../../core/settings/settings_provider.dart';
+import 'dashboard/dashboard_screen.dart';
+import 'transactions/history_screen.dart';
+import 'analytics/statistics_screen.dart';
+import 'wallet/wallet_screen.dart';
+import 'goals/screens/goals_screen.dart';
+import 'goals/widgets/create_goal_modal.dart';
+import 'dashboard/dashboard_provider.dart';
+import 'ai_assistant/ai_assistant_screen.dart';
+import 'transactions/add_transaction_modal.dart';
+
+class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
 
   @override
-  ConsumerState<MainScreen> createState() => _MainScreenState();
+  State<MainScreen> createState() => _MainScreenState();
 }
 
-class _MainScreenState extends ConsumerState<MainScreen> {
+class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
   int _currentIndex = 0;
   bool _isMenuOpen = false;
+
+  late final AnimationController _menuController;
+  late final AnimationController _fabController;
+  late final Animation<double> _fabRotation;
+  late final Animation<double> _backdropOpacity;
+
+  static const Color _panelColor = Color(0xFF191A20);
+  static const Color _borderColor = Color(0xFF2D2E36);
+  static const Color _mutedColor = Color(0xFF92939F);
+
+  // White theme colors for bubbles
+  static const Color _bubbleBgColor = Colors.white;
+
+  static const Color _incomeColor = Color(0xFF45D6A0);
+  static const Color _expenseColor = Color(0xFFFF7185);
+  static const Color _aiColor = Color(0xFFBE9AFF);
+  static const Color _goalColor = Color(0xFFF59E0B);
+
+  late final List<Widget> _pages = [
+    const DashboardScreen(),
+    const HistoryScreen(),
+    const StatisticsScreen(),
+    Consumer(builder: (context, ref, _) => const GoalsScreen()),
+    Consumer(builder: (context, ref, _) => const WalletScreen()),
+  ];
 
   @override
   void initState() {
     super.initState();
-    Future.delayed(const Duration(seconds: 3), () {
-      if (mounted) {
-        final t = AppTranslations.of(ref.read(settingsProvider).languageCode);
-        UpdateHelper.checkForUpdates(context, t: t);
-      }
-    });
-  }
 
-  final List<Widget> _pages = const [
-    DashboardScreen(),
-    HistoryScreen(),
-    StatisticsScreen(),
-    WalletScreen(),
-  ];
+    _menuController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 420),
+      reverseDuration: const Duration(milliseconds: 280),
+    );
 
-  void _openTransactionModal(String type) {
-    setState(() => _isMenuOpen = false);
-    context.showAnimatedBottomSheet(
-      builder: (context) => AddTransactionModal(initialType: type),
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-      ),
-      barrierColor: Colors.black.withValues(alpha: 0.65),
+    _fabController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 360),
+      reverseDuration: const Duration(milliseconds: 260),
+    );
+
+    _fabRotation = Tween<double>(begin: 0, end: 0.125).animate(
+      CurvedAnimation(parent: _fabController, curve: Curves.easeInOutCubic),
+    );
+
+    _backdropOpacity = CurvedAnimation(
+      parent: _menuController,
+      curve: Curves.easeOutCubic,
     );
   }
 
-  void _openAIAssistant() {
-    setState(() => _isMenuOpen = false);
-    context.pushModalPage(const AIAssistantScreen());
+  @override
+  void dispose() {
+    _menuController.dispose();
+    _fabController.dispose();
+    super.dispose();
   }
 
   void _toggleMenu() {
-    setState(() => _isMenuOpen = !_isMenuOpen);
+    if (_isMenuOpen) {
+      _closeMenu();
+      return;
+    }
+
+    setState(() => _isMenuOpen = true);
+
+    _menuController.forward();
+    _fabController.forward();
+  }
+
+  Future<void> _closeMenu() async {
+    if (!_isMenuOpen) return;
+
+    setState(() => _isMenuOpen = false);
+
+    await Future.wait<void>([
+      _menuController.reverse(),
+      _fabController.reverse(),
+    ]);
+  }
+
+  Future<void> _openTransactionModal(String type) async {
+    await _closeMenu();
+
+    if (!mounted) return;
+
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      barrierColor: Colors.black.withValues(alpha: 0.60),
+      useSafeArea: true,
+      enableDrag: true,
+      builder: (_) => AddTransactionModal(initialType: type),
+    );
+  }
+
+  Future<void> _openAiAssistant() async {
+    await _closeMenu();
+
+    if (!mounted) return;
+
+    await Navigator.of(context).push(
+      PageRouteBuilder<void>(
+        transitionDuration: const Duration(milliseconds: 360),
+        reverseTransitionDuration: const Duration(milliseconds: 280),
+        pageBuilder: (_, animation, secondaryAnimation) =>
+            const AIAssistantScreen(),
+        transitionsBuilder: (_, animation, secondaryAnimation, child) {
+          final curved = CurvedAnimation(
+            parent: animation,
+            curve: Curves.easeOutCubic,
+          );
+
+          return FadeTransition(
+            opacity: curved,
+            child: SlideTransition(
+              position: Tween<Offset>(
+                begin: const Offset(0.04, 0),
+                end: Offset.zero,
+              ).animate(curved),
+              child: child,
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Future<void> _openGoalModal() async {
+    await _closeMenu();
+
+    if (!mounted) return;
+
+    final container = ProviderScope.containerOf(context);
+    final settings = container.read(settingsProvider);
+    final fmt = CurrencyFormatter.from(settings);
+    final t = AppTranslations.of(settings.languageCode);
+
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      barrierColor: Colors.black.withValues(alpha: 0.60),
+      useSafeArea: true,
+      builder: (_) => CreateGoalModal(
+        fmt: fmt,
+        t: t,
+        onSaved: () => container.invalidate(goalsProvider),
+      ),
+    );
+  }
+
+  void _onNavigationTap(int index) {
+    if (_currentIndex == index) {
+      if (_isMenuOpen) _closeMenu();
+      return;
+    }
+
+    if (_isMenuOpen) {
+      _closeMenu();
+    }
+
+    setState(() => _currentIndex = index);
   }
 
   @override
   Widget build(BuildContext context) {
-    final t = AppTranslations.of(ref.watch(settingsProvider).languageCode);
-    final bottomPadding = MediaQuery.paddingOf(context).bottom;
-    // Calculate vertical center of the centerDocked FAB (48x48):
-    final fabBottomOffset = 56.0 + bottomPadding - 24.0;
-
-    return Stack(
-      children: [
-        // ── Base Scaffold ──────────────────────────────────────────
-        Scaffold(
-          backgroundColor: AppColors.surfaceCanvas,
-          body: AnimatedSwitcher(
-            duration: const Duration(milliseconds: 200),
-            switchInCurve: Curves.easeOutCubic,
-            switchOutCurve: Curves.easeInCubic,
-            transitionBuilder: (child, animation) {
-              final curvedAnimation = CurvedAnimation(
-                parent: animation,
-                curve: Curves.easeOutCubic,
-                reverseCurve: Curves.easeInCubic,
-              );
-
-              final slideAnimation = Tween<Offset>(
-                begin: const Offset(0.08, 0),
-                end: Offset.zero,
-              ).animate(curvedAnimation);
-
-              final fadeAnimation = Tween<double>(
-                begin: 0.0,
-                end: 1.0,
-              ).animate(curvedAnimation);
-
-              return FadeTransition(
-                opacity: fadeAnimation,
-                child: SlideTransition(
-                  position: slideAnimation,
-                  child: child,
-                ),
-              );
-            },
-            child: _pages[_currentIndex],
-          ),
-
-          // ── Bottom Navigation Bar ────────────────────────────────
-          bottomNavigationBar: Container(
-            decoration: const BoxDecoration(
-              color: AppColors.surfaceContainerLow,
-              border: Border(
-                top: BorderSide(color: Color(0x0FFFFFFF), width: 1),
-              ),
-            ),
-            child: BottomNavigationBar(
-              backgroundColor: Colors.transparent,
-              elevation: 0,
-              iconSize: 20,
-              selectedItemColor: AppColors.accentWhite,
-              unselectedItemColor: AppColors.textMuted,
-              currentIndex: _currentIndex,
-              type: BottomNavigationBarType.fixed,
-              selectedFontSize: 10,
-              unselectedFontSize: 10,
-              onTap: (index) {
-                if (_isMenuOpen) setState(() => _isMenuOpen = false);
-                setState(() => _currentIndex = index);
-              },
-              items: [
-                BottomNavigationBarItem(
-                  icon: const Padding(
-                    padding: EdgeInsets.only(bottom: 2.5),
-                    child: Icon(Icons.dashboard_outlined, size: 20),
-                  ),
-                  activeIcon: const Padding(
-                    padding: EdgeInsets.only(bottom: 2.5),
-                    child: Icon(Icons.dashboard_rounded, size: 20),
-                  ),
-                  label: t.dashboard,
-                ),
-                BottomNavigationBarItem(
-                  icon: const Padding(
-                    padding: EdgeInsets.only(bottom: 2.5),
-                    child: Icon(Icons.receipt_long_outlined, size: 20),
-                  ),
-                  activeIcon: const Padding(
-                    padding: EdgeInsets.only(bottom: 2.5),
-                    child: Icon(Icons.receipt_long_rounded, size: 20),
-                  ),
-                  label: t.history,
-                ),
-                BottomNavigationBarItem(
-                  icon: const Padding(
-                    padding: EdgeInsets.only(bottom: 2.5),
-                    child: Icon(Icons.analytics_outlined, size: 20),
-                  ),
-                  activeIcon: const Padding(
-                    padding: EdgeInsets.only(bottom: 2.5),
-                    child: Icon(Icons.analytics_rounded, size: 20),
-                  ),
-                  label: t.statistics,
-                ),
-                BottomNavigationBarItem(
-                  icon: const Padding(
-                    padding: EdgeInsets.only(bottom: 2.5),
-                    child: Icon(
-                      Icons.account_balance_wallet_outlined,
-                      size: 20,
-                    ),
-                  ),
-                  activeIcon: const Padding(
-                    padding: EdgeInsets.only(bottom: 2.5),
-                    child: Icon(Icons.account_balance_wallet_rounded, size: 20),
-                  ),
-                  label: t.wallet,
-                ),
-              ],
-            ),
-          ),
-
-          // ── Center Docked Floating Action Button (Closed State) ──
-          floatingActionButton: _isMenuOpen
-              ? const SizedBox(width: 48, height: 48)
-              : _buildFab(isOpen: false),
-          floatingActionButtonLocation:
-              FloatingActionButtonLocation.centerDocked,
-        ),
-
-        // ── Full-Screen Backdrop & Speed-Dial Overlay (Open State) ─
-        if (_isMenuOpen) ...[
-          // 1. Frosted Backdrop over entire screen
+    return Scaffold(
+      backgroundColor: AppColors.backgroundColor,
+      extendBody: true,
+      body: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          // HALAMAN UTAMA
           Positioned.fill(
-            child: GestureDetector(
-              behavior: HitTestBehavior.opaque,
-              onTap: () => setState(() => _isMenuOpen = false),
-              child: BackdropFilter(
-                filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-                child: Container(color: Colors.black.withValues(alpha: 0.65)),
-              ),
-            ).animate().fadeIn(duration: 200.ms),
+            child: IndexedStack(index: _currentIndex, children: _pages),
           ),
 
-          // 2. Arc Speed-Dial Buttons anchored cleanly above the FAB (Icons only)
+          // BACKDROP MENU BUBBLE
+          Positioned.fill(
+            child: AnimatedBuilder(
+              animation: _menuController,
+              builder: (context, child) {
+                return IgnorePointer(
+                  ignoring: _menuController.value == 0,
+                  child: GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onTap: _closeMenu,
+                    child: Opacity(
+                      opacity: _backdropOpacity.value * 0.58,
+                      child: const ColoredBox(color: Colors.black),
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+
+          // BUBBLE ACTION MENU
           Positioned(
-            bottom: fabBottomOffset + 38,
-            left: 20,
-            right: 20,
-            child: SizedBox(
-              height: 140,
-              child: Stack(
-                alignment: Alignment.bottomCenter,
+            left: 16,
+            right: 16,
+            bottom: 104,
+            child: AnimatedBuilder(
+              animation: _menuController,
+              builder: (context, child) {
+                return IgnorePointer(
+                  ignoring: _menuController.value < 0.85,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildBubble(
+                        index: 0,
+                        icon: Icons.auto_awesome_rounded,
+                        title: 'AI Assistant',
+                        subtitle: 'Asisten keuangan personal',
+                        tag: 'AI',
+                        color: _aiColor,
+                        onTap: _openAiAssistant,
+                      ),
+                      const SizedBox(height: 10),
+                      _buildBubble(
+                        index: 1,
+                        icon: Icons.arrow_downward_rounded,
+                        title: 'Pengeluaran',
+                        subtitle: 'Catat belanja dan tagihan',
+                        tag: 'EXPENSE',
+                        color: _expenseColor,
+                        onTap: () => _openTransactionModal('expense'),
+                      ),
+                      const SizedBox(height: 10),
+                      _buildBubble(
+                        index: 2,
+                        icon: Icons.arrow_upward_rounded,
+                        title: 'Pemasukan',
+                        subtitle: 'Catat uang yang masuk',
+                        tag: 'INCOME',
+                        color: _incomeColor,
+                        onTap: () => _openTransactionModal('income'),
+                      ),
+
+                      const SizedBox(height: 10),
+                    ],
+                  ),
+                );
+              },
+            ),
+          ),
+
+          // FLOATING NAVBAR
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 0,
+            child: SafeArea(
+              top: false,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    _buildAddButton(),
+                    const SizedBox(width: 10),
+
+                    // NAVBAR CAPSULE
+                    Expanded(
+                      child: Container(
+                        height: 64,
+                        padding: const EdgeInsets.all(5),
+                        decoration: BoxDecoration(
+                          color: _panelColor,
+                          borderRadius: BorderRadius.circular(32),
+                          border: Border.all(color: _borderColor, width: 1),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.28),
+                              blurRadius: 28,
+                              spreadRadius: -6,
+                              offset: const Offset(0, 8),
+                            ),
+                          ],
+                        ),
+                        child: Row(
+                          children: [
+                            _navItem(0, Icons.grid_view_rounded, 'Home'),
+                            _navItem(1, Icons.receipt_long_rounded, 'History'),
+                            _navItem(2, Icons.equalizer_rounded, 'Stats'),
+                            _navItem(3, Icons.flag_rounded, 'Goals'),
+                            _navItem(
+                              4,
+                              Icons.account_balance_wallet_rounded,
+                              'Wallet',
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ==========================================
+  // TOMBOL TAMBAH
+  // ==========================================
+  Widget _buildAddButton() {
+    return AnimatedBuilder(
+      animation: _fabController,
+      builder: (context, child) {
+        final isOpen = _isMenuOpen;
+
+        return Material(
+          color: Colors.transparent,
+          shape: const CircleBorder(),
+          child: InkWell(
+            onTap: _toggleMenu,
+            customBorder: const CircleBorder(),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 260),
+              curve: Curves.easeOutCubic,
+              width: 54,
+              height: 54,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.24),
+                    blurRadius: 20,
+                    offset: const Offset(0, 6),
+                  ),
+                  BoxShadow(
+                    color: Colors.white.withValues(alpha: 0.10),
+                    blurRadius: 12,
+                    spreadRadius: -3,
+                  ),
+                ],
+              ),
+              child: Center(
+                child: Transform.rotate(
+                  angle: _fabRotation.value * 2 * math.pi,
+                  child: AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 180),
+                    switchInCurve: Curves.easeOutBack,
+                    switchOutCurve: Curves.easeIn,
+                    transitionBuilder: (child, animation) {
+                      return ScaleTransition(
+                        scale: animation,
+                        child: FadeTransition(opacity: animation, child: child),
+                      );
+                    },
+                    child: Icon(
+                      isOpen ? Icons.close_rounded : Icons.add_rounded,
+                      key: ValueKey<bool>(isOpen),
+                      color: const Color(0xFF191A20),
+                      size: 29,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  // ==========================================
+  // NAVBAR ITEM DENGAN ANIMASI
+  // ==========================================
+  Widget _navItem(int index, IconData icon, String label) {
+    final selected = _currentIndex == index;
+
+    return Expanded(
+      child: Semantics(
+        button: true,
+        selected: selected,
+        label: label,
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: () => _onNavigationTap(index),
+            borderRadius: BorderRadius.circular(25),
+            splashColor: Colors.white.withValues(alpha: 0.06),
+            highlightColor: Colors.white.withValues(alpha: 0.04),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 300),
+              curve: Curves.easeOutCubic,
+              margin: const EdgeInsets.symmetric(horizontal: 1),
+              padding: const EdgeInsets.symmetric(horizontal: 1, vertical: 5),
+              decoration: BoxDecoration(
+                color: selected
+                    ? Colors.white.withValues(alpha: 0.10)
+                    : Colors.transparent,
+                borderRadius: BorderRadius.circular(25),
+                border: Border.all(
+                  color: selected
+                      ? Colors.white.withValues(alpha: 0.07)
+                      : Colors.transparent,
+                ),
+              ),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  // Left Action: Pemasukan (Income)
-                  Positioned(
-                    left: 36,
-                    bottom: 8,
-                    child: _buildArcSpeedDialItem(
-                      icon: Icons.arrow_downward_rounded,
-                      color: const Color(0xFF10B981),
-                      glowColor: const Color(0x4010B981),
-                      delayMs: 0,
-                      onTap: () => _openTransactionModal('income'),
+                  AnimatedScale(
+                    scale: selected ? 1.08 : 1,
+                    duration: const Duration(milliseconds: 260),
+                    curve: Curves.easeOutBack,
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 260),
+                      curve: Curves.easeOutCubic,
+                      child: Icon(
+                        icon,
+                        size: 18,
+                        color: selected ? Colors.white : _mutedColor,
+                      ),
                     ),
                   ),
-
-                  // Center Action: AI Assistant (Elevated Crown Peak)
-                  Positioned(
-                    bottom: 68,
-                    child: _buildArcSpeedDialItem(
-                      icon: Icons.auto_awesome_rounded,
-                      color: const Color(0xFF818CF8),
-                      glowColor: const Color(0x666366F1),
-                      isHighlight: true,
-                      delayMs: 40,
-                      onTap: _openAIAssistant,
+                  const SizedBox(height: 4),
+                  AnimatedDefaultTextStyle(
+                    duration: const Duration(milliseconds: 220),
+                    curve: Curves.easeOut,
+                    style: TextStyle(
+                      color: selected ? Colors.white : _mutedColor,
+                      fontSize: 9,
+                      height: 1,
+                      fontWeight: selected ? FontWeight.w700 : FontWeight.w400,
+                      letterSpacing: selected ? 0.1 : 0,
+                    ),
+                    child: Text(
+                      label,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      textAlign: TextAlign.center,
                     ),
                   ),
-
-                  // Right Action: Pengeluaran (Expense)
-                  Positioned(
-                    right: 36,
-                    bottom: 8,
-                    child: _buildArcSpeedDialItem(
-                      icon: Icons.arrow_upward_rounded,
-                      color: const Color(0xFFF43F5E),
-                      glowColor: const Color(0x40F43F5E),
-                      delayMs: 80,
-                      onTap: () => _openTransactionModal('expense'),
+                  const SizedBox(height: 3),
+                  // INDICATOR AKTIF
+                  AnimatedContainer(
+                    duration: const Duration(milliseconds: 280),
+                    curve: Curves.easeOutCubic,
+                    width: selected ? 12 : 3,
+                    height: 2,
+                    decoration: BoxDecoration(
+                      color: selected ? Colors.white : Colors.transparent,
+                      borderRadius: BorderRadius.circular(10),
                     ),
                   ),
                 ],
               ),
             ),
           ),
-
-          // 3. Open-State Floating Action Button on top of backdrop
-          Positioned(
-            bottom: fabBottomOffset,
-            left: 0,
-            right: 0,
-            child: Center(child: _buildFab(isOpen: true)),
-          ),
-        ],
-      ],
-    );
-  }
-
-  /// Center Floating Action Button with smooth rotation and illumination
-  Widget _buildFab({required bool isOpen}) {
-    return GestureDetector(
-      onTap: _toggleMenu,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 250),
-        curve: Curves.easeOutBack,
-        width: 48,
-        height: 48,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          color: isOpen ? const Color(0xFF23252E) : AppColors.accentWhite,
-          border: Border.all(
-            color: isOpen ? const Color(0x55F43F5E) : const Color(0x1A000000),
-            width: isOpen ? 1.5 : 1,
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: isOpen ? const Color(0x66F43F5E) : const Color(0x55FFFFFF),
-              offset: const Offset(0, 3),
-              blurRadius: isOpen ? 16 : 12,
-            ),
-          ],
-        ),
-        child: Center(
-          child: AnimatedRotation(
-            turns: isOpen ? 0.25 : 0.0,
-            duration: const Duration(milliseconds: 250),
-            curve: Curves.easeOutBack,
-            child: Icon(
-              isOpen ? Icons.close_rounded : Icons.add_rounded,
-              size: 22,
-              color: isOpen ? const Color(0xFFFB7185) : AppColors.accentBlack,
-            ),
-          ),
         ),
       ),
     );
   }
 
-  /// Speed-Dial Item in Arc Layout (Clean Minimalist Icon Button)
-  Widget _buildArcSpeedDialItem({
+  // ==========================================
+  // BUBBLE ACTION
+  // ==========================================
+  Widget _buildBubble({
+    required int index,
     required IconData icon,
+    required String title,
+    required String subtitle,
+    required String tag,
     required Color color,
-    required Color glowColor,
     required VoidCallback onTap,
-    required int delayMs,
-    bool isHighlight = false,
   }) {
-    return GestureDetector(
-          onTap: onTap,
-          child: Container(
-            width: 52,
-            height: 52,
+    final start = index * 0.14;
+
+    final animation = CurvedAnimation(
+      parent: _menuController,
+      curve: Interval(start, 1, curve: Curves.easeOutCubic),
+    );
+
+    return AnimatedBuilder(
+      animation: animation,
+      builder: (context, child) {
+        final progress = animation.value;
+
+        return Opacity(
+          opacity: progress,
+          child: Transform.translate(
+            offset: Offset(-14 * (1 - progress), 18 * (1 - progress)),
+            child: Transform.scale(
+              scale: 0.94 + (0.06 * progress),
+              alignment: Alignment.bottomLeft,
+              child: child,
+            ),
+          ),
+        );
+      },
+      child: Row(
+        children: [
+          // IKON BUBBLE
+          Container(
+            width: 42,
+            height: 42,
             decoration: BoxDecoration(
+              color: _panelColor,
               shape: BoxShape.circle,
-              color: AppColors.surfaceContainer,
-              border: Border.all(
-                color: isHighlight
-                    ? const Color(0x66818CF8)
-                    : color.withValues(alpha: 0.35),
-                width: isHighlight ? 1.5 : 1.2,
-              ),
+              border: Border.all(color: _borderColor, width: 1),
               boxShadow: [
                 BoxShadow(
-                  color: glowColor,
-                  blurRadius: 16,
-                  offset: const Offset(0, 3),
-                ),
-                const BoxShadow(
-                  color: AppColors.shadowDarkFloat,
-                  blurRadius: 12,
-                  offset: Offset(3, 5),
-                ),
-                const BoxShadow(
-                  color: AppColors.shadowLightFloat,
-                  blurRadius: 6,
-                  offset: Offset(-2, -2),
+                  color: Colors.black.withValues(alpha: 0.16),
+                  blurRadius: 14,
+                  offset: const Offset(0, 4),
                 ),
               ],
             ),
-            child: Center(
-              child: Container(
-                width: 38,
-                height: 38,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: color.withValues(alpha: 0.15),
-                ),
-                child: Center(
-                  child: Icon(
-                    icon,
-                    color: isHighlight ? AppColors.accentWhite : color,
-                    size: 21,
-                  ),
-                ),
-              ),
+            child: Icon(icon, color: color, size: 21),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: _BubbleActionCard(
+              title: title,
+              subtitle: subtitle,
+              tag: tag,
+              color: color,
+              onTap: onTap,
             ),
           ),
-        )
-        .animate()
-        .fadeIn(delay: delayMs.ms, duration: 220.ms)
-        .scale(
-          begin: const Offset(0.5, 0.5),
-          end: const Offset(1, 1),
-          delay: delayMs.ms,
-          duration: 260.ms,
-          curve: Curves.easeOutBack,
-        )
-        .slideY(
-          begin: 0.4,
-          end: 0,
-          delay: delayMs.ms,
-          duration: 260.ms,
-          curve: Curves.easeOutBack,
-        );
+        ],
+      ),
+    );
+  }
+}
+
+// =====================================
+// KARTU BUBBLE
+// =====================================
+class _BubbleActionCard extends StatelessWidget {
+  const _BubbleActionCard({
+    required this.title,
+    required this.subtitle,
+    required this.tag,
+    required this.color,
+    required this.onTap,
+  });
+
+  final String title;
+  final String subtitle;
+  final String tag;
+  final Color color;
+  final VoidCallback onTap;
+
+  static const Color _panelColor = Color(0xFF191A20);
+  static const Color _borderColor = Color(0xFF2D2E36);
+  static const Color _mutedColor = Color(0xFF92939F);
+  static const Color _textPrimary = Color(0xFFF4F4F6);
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(17),
+        splashColor: Colors.white.withValues(alpha: 0.04),
+        highlightColor: Colors.white.withValues(alpha: 0.03),
+        child: Ink(
+          padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 11),
+          decoration: BoxDecoration(
+            color: _panelColor,
+            borderRadius: BorderRadius.circular(17),
+            border: Border.all(color: _borderColor, width: 1),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.20),
+                blurRadius: 18,
+                offset: const Offset(0, 5),
+              ),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Row(
+                children: [
+                  Flexible(
+                    child: Text(
+                      title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: _textPrimary,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 0.1,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 7,
+                      vertical: 3,
+                    ),
+                    decoration: BoxDecoration(
+                      color: color.withValues(alpha: 0.10),
+                      borderRadius: BorderRadius.circular(5),
+                      border: Border.all(color: color.withValues(alpha: 0.12)),
+                    ),
+                    child: Text(
+                      tag,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: color,
+                        fontSize: 8,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 0.4,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 4),
+              Text(
+                subtitle,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: _mutedColor,
+                  fontSize: 10,
+                  height: 1.2,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }

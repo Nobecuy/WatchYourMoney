@@ -11,6 +11,7 @@ import 'package:watch_your_money/data/repositories/hive_noir_settings_repository
 import 'package:watch_your_money/data/repositories/hive_pending_action_repository.dart'
     show HivePendingActionRepository;
 import 'package:watch_your_money/domain/models/chat_message_model.dart';
+import 'package:watch_your_money/features/goals/models/goal_model.dart';
 import 'package:watch_your_money/domain/models/noir_settings_model.dart';
 import 'package:watch_your_money/domain/models/pending_action_model.dart';
 import 'package:watch_your_money/domain/models/transaction_model.dart';
@@ -27,10 +28,12 @@ void main() async {
   Hive.registerAdapter(ToolResultAdapter());
   Hive.registerAdapter(PendingActionModelAdapter());
   Hive.registerAdapter(NoirSettingsModelAdapter());
+  Hive.registerAdapter(GoalModelAdapter());
   await Hive.openBox<TransactionModel>('transactions');
   await Hive.openBox<ChatMessageModel>('chat_messages');
   await Hive.openBox<PendingActionModel>('pending_actions');
   await Hive.openBox<NoirSettingsModel>('noir_settings');
+  await Hive.openBox<GoalModel>('goals');
 
   // 2. Buka Hive box untuk Settings (language + currency preferences)
   await openSettingsBox();

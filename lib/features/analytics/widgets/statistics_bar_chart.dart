@@ -1,4 +1,5 @@
 /// Bar chart widget for Statistics screen.
+library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -32,7 +33,11 @@ class StatisticsBarChart extends ConsumerWidget {
     final settings = ref.watch(appSettingsProvider);
     final t = AppTranslations.of(settings.languageCode);
 
-    final barData = ChartDataService.computeBarChartData(transactions, period, weekLabel);
+    final barData = ChartDataService.computeBarChartData(
+      transactions,
+      period,
+      weekLabel,
+    );
     final maxY = ChartDataService.computeMaxY(barData);
 
     return NeumorphicContainer(

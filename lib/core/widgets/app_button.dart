@@ -1,5 +1,6 @@
 /// Unified button component for the app.
 /// Replaces 5+ different button implementations across screens.
+library;
 
 import 'package:flutter/material.dart';
 import 'package:watch_your_money/core/theme/app_colors.dart';
@@ -9,24 +10,24 @@ import 'package:watch_your_money/core/widgets/app_constants.dart';
 enum AppButtonStyle {
   /// White background, black text - primary actions
   primary,
+
   /// Neumorphic raised - secondary actions
   secondary,
+
   /// Transparent with border - outline actions
   outline,
+
   /// Text only - tertiary/ghost actions
   ghost,
+
   /// Icon button in neumorphic container
   icon,
+
   /// Danger/destructive actions
   destructive,
 }
 
-enum AppButtonSize {
-  small,
-  medium,
-  large,
-  extraLarge,
-}
+enum AppButtonSize { small, medium, large, extraLarge }
 
 class AppButton extends StatelessWidget {
   final String? label;
@@ -54,7 +55,10 @@ class AppButton extends StatelessWidget {
     this.backgroundColor,
     this.foregroundColor,
     this.trailingIcon,
-  }) : assert(label != null || icon != null, 'Either label or icon must be provided');
+  }) : assert(
+         label != null || icon != null,
+         'Either label or icon must be provided',
+       );
 
   double get _height {
     switch (size) {
@@ -163,7 +167,8 @@ class AppButton extends StatelessWidget {
       );
     }
     if (trailingIcon != null) {
-      if (label != null || icon != null) widgets.add(const SizedBox(width: AppSpacing.sm));
+      if (label != null || icon != null)
+        widgets.add(const SizedBox(width: AppSpacing.sm));
       widgets.add(trailingIcon!);
     }
 
@@ -193,7 +198,9 @@ class AppButton extends StatelessWidget {
       width: isFullWidth ? double.infinity : null,
       child: NeumorphicContainer(
         isElevated: true,
-        backgroundColor: enabled ? AppColors.accentWhite : AppColors.surfaceContainerHigh,
+        backgroundColor: enabled
+            ? AppColors.accentWhite
+            : AppColors.surfaceContainerHigh,
         borderRadius: AppRadii.pill,
         onTap: enabled ? onPressed : null,
         padding: padding ?? _contentPadding,
@@ -308,7 +315,9 @@ class AppButton extends StatelessWidget {
       width: isFullWidth ? double.infinity : null,
       child: NeumorphicContainer(
         isElevated: true,
-        backgroundColor: enabled ? AppColors.negative : AppColors.negative.withValues(alpha: 0.5),
+        backgroundColor: enabled
+            ? AppColors.negative
+            : AppColors.negative.withValues(alpha: 0.5),
         borderRadius: AppRadii.pill,
         onTap: enabled ? onPressed : null,
         padding: padding ?? _contentPadding,
